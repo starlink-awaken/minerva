@@ -1,0 +1,125 @@
+{
+  "version": "1.0",
+  "task": "Minerva Phase 0+1 — Implement deep research system from skeleton code",
+  "plan": "/Volumes/Workspace/SharedBrain/.omc/plans/minerva-phase0-1.md",
+  "spec": "/Volumes/Workspace/SharedBrain/.omc/specs/deep-interview-minerva-impl.md",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Phase 0 Bootstrap: Git init + venv + deps",
+      "priority": 1,
+      "passes": false,
+      "acceptanceCriteria": [
+        "git init done and initial commit exists in /Users/xiamingxing/Workspace/minerva/",
+        "python3 -m venv .venv creates virtual environment",
+        "pip install -e '.[dev]' succeeds without errors",
+        "python -c 'import minerva' succeeds",
+        "spaCy en_core_web_sm model downloaded"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Phase 0 Bootstrap: CONTRACTS.md + OpenAICompatibleClient",
+      "priority": 2,
+      "passes": false,
+      "acceptanceCriteria": [
+        "docs/CONTRACTS.md exists with generate() signature, ctx formats, entity/search result shapes",
+        "src/minerva/llm/client.py exists with OpenAICompatibleClient class",
+        "generate(system, prompt, temperature, max_tokens) -> str contract implemented",
+        "tests/unit/test_llm_client.py::test_generate_mock exists and passes",
+        "src/minerva/llm/__init__.py exists"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Phase 0 Bootstrap: Config loader + __init__.py files + CLI + daemon stub",
+      "priority": 3,
+      "passes": false,
+      "acceptanceCriteria": [
+        "src/minerva/config.py exists with MinervaConfig class reading config/minerva.yaml + env vars",
+        "tests/unit/test_config.py::test_load_valid exists and passes",
+        "__init__.py files exist in all 8 subpackages",
+        "src/minerva/cli.py exists with research/mcp/check subcommands",
+        "minerva --help exits 0 with usage output",
+        "src/minerva/executor/daemon.py stub exists (prints Phase 2, exits 0)",
+        "minerva-daemon entry point doesn't crash on import"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Phase 0 Bootstrap: Ollama install + model name updates",
+      "priority": 4,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Ollama installed (brew or direct)",
+        "ollama pull qwen3:30b-a3b succeeds (or graceful skip if already present)",
+        "ollama run qwen3:30b-a3b 'hello' returns a response",
+        "No qwen3.6:35b-a3b references remain in triage/router.py or config/minerva.yaml",
+        "config/minerva.yaml model names updated to qwen3:30b-a3b"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "V-SLICE: L0 end-to-end — SearXNG backend + OutputStage minimal + CLI wiring",
+      "priority": 5,
+      "passes": false,
+      "acceptanceCriteria": [
+        "SearXNG backend (_search_searxng) implemented — httpx GET localhost:8080/search → JSON parse → [SearchResult]",
+        "OutputStage.execute() implemented — formats search_results as markdown with citations to stdout",
+        "CLI wired: minerva research 'test' --level L0 calls TriageRouter→Pipeline(L0)→OutputStage",
+        "minerva research 'python asyncio 是什么' --level L0 returns markdown with >=1 citation URL in <30s",
+        "OpenAICompatibleClient.generate() successfully called Ollama and returned valid response"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Phase 1 Wave 1: Search backends (Semantic Scholar + Jina + BS4) + tests",
+      "priority": 6,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Semantic Scholar backend (_search_semantic_scholar) implemented and returns results",
+        "Jina content extraction (_extract_jina) implemented — GET r.jina.ai/URL returns markdown",
+        "BS4 fallback extraction (_extract_bs4) implemented — readability-lxml main content extraction",
+        "arxiv + ddg marked EXPLICITLY_DEFERRED, removed from _default_backends()",
+        "tests/unit/test_search.py exists with 3 tests, all passing",
+        "tests/unit/test_triage.py exists with 5 tests, all passing",
+        "tests/unit/test_knowledge.py exists with 5 tests, all passing"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Phase 2 Wave 2: Pipeline stages (Decompose→Search→Entity→DeepRead→Analyze→Quality→Output) + Triage wiring",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "DecomposeStage.execute() implemented — LLM decomposes query into sub_questions list",
+        "MultiSourceSearchStage.execute() implemented — parallel searches across backends",
+        "EntityExtractionStage.execute() implemented — spaCy NER + LLM fallback for Chinese/low-conf",
+        "DeepReadStage.execute() implemented — Jina extract + LLM cross-analysis prompt",
+        "CrossAnalyzeStage.execute() implemented — contradiction detection + consensus marking",
+        "QualityGateStage.execute() implemented — citation check, confidence check, pass/fail",
+        "OutputStage.execute() fully implemented — report template + file write to ~/knowledge/reports/",
+        "TriageRouter._llm_classify() wired to real OpenAICompatibleClient",
+        "tests/unit/test_pipeline.py exists with 8 tests, all passing",
+        "tests/unit/test_cost_guard.py exists with 2 tests, all passing"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Phase 3 Wave 3: Integration — MCP wiring + ingest + restore_state + e2e tests + acceptance sweep",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "MCP Server wired to ResearchExecutor with real OpenAICompatibleClient — research_now callable",
+        "ingest() pipeline implemented — URL→extract→spaCy NER→store entities+relations",
+        "Executor._restore_state() implemented — JSON deserialize + task recreation",
+        "tests/integration/test_pipeline.py exists with test_l0_e2e passing",
+        "tests/integration/test_pipeline.py exists with test_l2_e2e passing (≥5 citations, <15min)",
+        "AC4: pytest --cov reports >60% line coverage",
+        "AC5: >=15 unit tests pass (target: 28)",
+        "AC7: LM Studio models directory intact",
+        "AC8: minerva --help exits 0"
+      ]
+    }
+  ]
+}
