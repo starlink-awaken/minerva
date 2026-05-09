@@ -151,7 +151,20 @@ class SQLiteKnowledgeStore(IKnowledgeStore):
                 last_verified TEXT
             );
             CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts
-                USING fts5(name, aliases, content='entities', content_rowid='rowid');
+                USING fts5(name, aliases);
+
+            -- Triggers to keep FTS5 index in sync with entities table
+            CREATE TRIGGER IF NOT EXISTS entities_ai AFTER INSERT ON entities BEGIN
+                INSERT INTO entities_fts(rowid, name, aliases) VALUES (new.rowid, new.name, new.aliases);
+            END;
+            CREATE TRIGGER IF NOT EXISTS entities_ad AFTER DELETE ON entities BEGIN
+                INSERT INTO entities_fts(entities_fts, rowid, name, aliases) VALUES('delete', old.rowid, old.name, old.aliases);
+            END;
+            CREATE TRIGGER IF NOT EXISTS entities_au AFTER UPDATE ON entities BEGIN
+                INSERT INTO entities_fts(entities_fts, rowid, name, aliases) VALUES('delete', old.rowid, old.name, old.aliases);
+                INSERT INTO entities_fts(rowid, name, aliases) VALUES (new.rowid, new.name, new.aliases);
+            END;
+
             CREATE TABLE IF NOT EXISTS relations (
                 id TEXT PRIMARY KEY,
                 subject_id TEXT NOT NULL REFERENCES entities(id),

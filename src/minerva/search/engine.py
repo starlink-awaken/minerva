@@ -122,11 +122,12 @@ class SearchEngine:
     # ============================================================
 
     def _default_backends(self) -> list[str]:
-        """Return list of enabled backends."""
-        return (
-            self.config.get("backends")
-            or ["searxng", "scholar", "arxiv"]
-        )
+        """Return list of enabled backends.
+
+        Phase 0+1: searxng + scholar (free, implemented)
+        Phase 2: exa, metaso, arxiv, ddg
+        """
+        return self.config.get("backends") or ["searxng", "scholar"]
 
     def _get_searcher(self, backend: str):
         """Get the search function for a backend."""
@@ -151,78 +152,38 @@ class SearchEngine:
     # --- Individual backend implementations ---
 
     async def _search_searxng(self, query: str) -> list[SearchResult]:
-        """
-        Pseudocode:
-        1. GET http://localhost:8080/search?q={query}&format=json
-        2. Parse JSON response: {results: [{title, url, content, engine, score}]}
-        3. Return [SearchResult(title, url, snippet=content, source="searxng") ...]
-        """
-        ...
+        from minerva.search.backends import search_searxng
+        return await search_searxng(query, base_url=self.config.get("searxng_url", "http://localhost:8080"))
 
     async def _search_metaso(self, query: str) -> list[SearchResult]:
-        """
-        Pseudocode:
-        1. POST to 秘塔AI搜索 API with query
-        2. Parse response (structured: title, url, snippet, source_type)
-        3. Return [SearchResult(title, url, snippet, source="metaso") ...]
-        """
-        ...
+        # Phase 2: 秘塔AI搜索 integration
+        return []
 
     async def _search_exa(self, query: str) -> list[SearchResult]:
-        """
-        Pseudocode:
-        1. POST https://api.exa.ai/search with {query, num_results: 10, use_autoprompt: true}
-        2. Parse {results: [{title, url, text, published_date, score}]}
-        3. Return [SearchResult(title, url, snippet=text, source="exa", published_date=date) ...]
-        """
-        ...
+        # Phase 2: Exa API integration
+        return []
 
     async def _search_semantic_scholar(self, query: str) -> list[SearchResult]:
-        """
-        Pseudocode:
-        1. GET https://api.semanticscholar.org/graph/v1/paper/search?query={query}&limit=10&fields=title,url,year,abstract,tldr
-        2. Parse {data: [{title, url, year, abstract, tldr: {text}}]}
-        3. Return [SearchResult(title, url, snippet=tldr["text"], source="scholar", published_date=str(year)) ...]
-        """
-        ...
+        from minerva.search.backends import search_semantic_scholar
+        return await search_semantic_scholar(query)
 
     async def _search_arxiv(self, query: str) -> list[SearchResult]:
-        """
-        Pseudocode:
-        1. GET http://export.arxiv.org/api/query?search_query=all:{query}&max_results=10
-        2. Parse Atom XML → extract title, id, summary, published
-        3. Return [SearchResult(title, url=id, snippet=summary, source="arxiv", published_date=published) ...]
-        """
-        ...
+        # Phase 2: arXiv API integration
+        return []
 
     async def _search_duckduckgo(self, query: str) -> list[SearchResult]:
-        """
-        Pseudocode:
-        1. DuckDuckGo HTML search (no API key needed)
-        2. Parse HTML → extract result titles, URLs, snippets
-        3. Return [SearchResult(title, url, snippet, source="ddg") ...]
-        """
-        ...
+        # Phase 2: DuckDuckGo search integration
+        return []
 
     # --- Content extraction ---
 
     async def _extract_jina(self, url: str) -> str:
-        """
-        Pseudocode:
-        1. GET https://r.jina.ai/{url}
-        2. Return markdown content
-        """
-        ...
+        from minerva.search.backends import extract_jina
+        return await extract_jina(url)
 
     async def _extract_bs4(self, url: str) -> str:
-        """
-        Pseudocode:
-        1. GET url with httpx
-        2. Parse HTML with BeautifulSoup
-        3. Use readability-lxml to extract main content
-        4. Return clean text
-        """
-        ...
+        from minerva.search.backends import extract_bs4
+        return await extract_bs4(url)
 
     # ============================================================
     # RRF Fusion

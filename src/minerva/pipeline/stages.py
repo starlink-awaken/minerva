@@ -1,0 +1,347 @@
+"""Pipeline stage implementations — Decompose, Search, Entity, DeepRead, Analyze, Quality, Output."""
+
+from __future__ import annotations
+
+import time
+from pathlib import Path
+
+from minerva.knowledge.store import Entity
+from minerva.pipeline.engine import IPipelineStage, QualityGateFailure, ResearchContext
+
+
+DECOMPOSE_PROMPT = """Decompose this research question into 3-5 specific sub-questions.
+Each sub-question should cover a distinct aspect. Output one question per line.
+Research question: {query}"""
+
+DEEP_READ_PROMPT = """Analyze the following documents about: {query}
+
+For each source:
+1. Extract key claims
+2. Note consensus (all sources agree)
+3. Note contradictions (sources disagree)
+4. Note gaps (topics not covered)
+5. Note evolution relationships (builds on, refutes)
+
+Documents:
+{documents}
+
+Provide structured analysis in markdown."""
+
+CROSS_ANALYZE_PROMPT = """Given this analysis of multiple sources about: {query}
+
+{analysis}
+
+Perform deep reasoning:
+1. For each contradiction: which claim is more credible and why?
+2. For each gap: is it unexplored or unsolvable with current methods?
+3. Based on evolution patterns: what is the likely next development?
+4. Assign confidence scores (HIGH/MEDIUM/LOW) to each conclusion.
+
+Output structured reasoning in markdown."""
+
+REPORT_TEMPLATE = """# Research Report: {query}
+
+## Executive Summary
+{summary}
+
+## Key Findings
+{findings}
+
+## Evidence Matrix
+| Claim | Source | Confidence |
+|-------|--------|------------|
+{evidence_rows}
+
+## Contradictions & Disputes
+{contradictions}
+
+## Gaps & Opportunities
+{gaps}
+
+## Citations
+{citations}
+"""
+
+
+class DecomposeStageImpl(IPipelineStage):
+    """Decompose query into sub-questions using local LLM."""
+
+    name = "decompose"
+
+    def __init__(self, llm_client, max_sub_questions: int = 5):
+        self.llm = llm_client
+        self.max_sub = max_sub_questions
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        try:
+            response = await self.llm.generate(
+                system="You decompose research questions into specific sub-questions.",
+                prompt=DECOMPOSE_PROMPT.format(query=ctx.query),
+                temperature=0.3,
+                max_tokens=500,
+            )
+            ctx.sub_questions = [
+                q.strip("- *").strip()
+                for q in response.strip().split("\n")
+                if q.strip() and len(q.strip()) > 5
+            ][:self.max_sub]
+        except Exception:
+            ctx.sub_questions = [ctx.query]
+        return ctx
+
+
+class MultiSourceSearchStageImpl(IPipelineStage):
+    """Parallel search across multiple backends."""
+
+    name = "search"
+
+    def __init__(self, search_engine, backends: list[str], max_results: int = 25):
+        self.search_engine = search_engine
+        self.backends = backends
+        self.max_results = max_results
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        queries = ctx.sub_questions if ctx.sub_questions else [ctx.query]
+        results = await self.search_engine.search(
+            queries[0],  # Primary query first
+            backends=self.backends,
+            max_results=self.max_results,
+        )
+        # Also search sub-questions if any
+        for q in queries[1:]:
+            sub_results = await self.search_engine.search(
+                q, backends=self.backends, max_results=5
+            )
+            results.extend(sub_results)
+
+        # Deduplicate
+        seen = set()
+        deduped = []
+        for r in results:
+            if r.url not in seen:
+                seen.add(r.url)
+                deduped.append(r)
+        ctx.search_results = [{
+            "title": r.title, "url": r.url, "snippet": r.snippet,
+            "source": r.source, "published_date": r.published_date,
+            "rank_score": r.rank_score,
+        } for r in deduped[:self.max_results]]
+        return ctx
+
+
+class EntityExtractionStageImpl(IPipelineStage):
+    """Extract entities using spaCy NLP + LLM fallback."""
+
+    name = "entity_extraction"
+
+    def __init__(self, nlp_pipeline, llm_client, knowledge_store=None):
+        self.nlp = nlp_pipeline  # spaCy Language
+        self.llm = llm_client
+        self.kb = knowledge_store
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        entities = []
+        if self.nlp is None:
+            ctx.entities = []
+            return ctx
+        for result in ctx.search_results[:10]:
+            text = result.get("snippet", "")
+            if not text:
+                continue
+            # spaCy NER
+            doc = self.nlp(text[:1000])
+            for ent in doc.ents:
+                if ent.label_ in ("ORG", "PERSON", "GPE", "PRODUCT", "WORK_OF_ART"):
+                    eid = f"ent-{len(entities)}-{ent.label_}"
+                    entity = Entity(
+                        id=eid, type=_spacy_to_entity_type(ent.label_),
+                        name=ent.text,
+                        source_ids=[result.get("url", "")],
+                        confidence="MEDIUM",
+                    )
+                    entities.append(entity)
+                    if self.kb:
+                        try:
+                            await self.kb.upsert_entity(entity)
+                        except Exception:
+                            pass
+        ctx.entities = [{"id": e.id, "type": e.type, "name": e.name, "confidence": e.confidence} for e in entities]
+        return ctx
+
+
+class DeepReadStageImpl(IPipelineStage):
+    """Extract full content and cross-analyze with LLM."""
+
+    name = "deep_read"
+
+    def __init__(self, content_extractor, llm_client, top_n: int = 15):
+        self.extractor = content_extractor
+        self.llm = llm_client
+        self.top_n = top_n
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        # Extract content from top results
+        top_results = ctx.search_results[:self.top_n]
+        documents = []
+        for r in top_results:
+            url = r.get("url", "")
+            if url:
+                content = await self.extractor.extract_content(url)
+                if content:
+                    documents.append(f"## {r.get('title', 'Untitled')}\nSource: {url}\n\n{content[:3000]}\n")
+
+        if not documents:
+            ctx.extracted_content = []
+            return ctx
+
+        docs_text = "\n---\n".join(documents)
+        try:
+            analysis = await self.llm.generate(
+                system="You analyze multiple documents and identify claims, consensus, contradictions, and gaps.",
+                prompt=DEEP_READ_PROMPT.format(query=ctx.query, documents=docs_text[:8000]),
+                temperature=0.3,
+                max_tokens=2000,
+            )
+        except Exception:
+            analysis = "Deep read analysis unavailable."
+
+        ctx.extracted_content = [d[:500] for d in documents]
+        ctx.contradictions = ctx.contradictions or []
+        ctx.contradictions.append({"analysis": analysis})
+        return ctx
+
+
+class CrossAnalyzeStageImpl(IPipelineStage):
+    """Deep reasoning analysis on extracted content."""
+
+    name = "cross_analyze"
+
+    def __init__(self, llm_client):
+        self.llm = llm_client
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        analysis = ""
+        for c in (ctx.contradictions or []):
+            analysis += c.get("analysis", "") + "\n"
+
+        if not analysis.strip():
+            ctx.relations = []
+            return ctx
+
+        try:
+            reasoning = await self.llm.generate(
+                system="You perform deep reasoning on research findings.",
+                prompt=CROSS_ANALYZE_PROMPT.format(query=ctx.query, analysis=analysis[:4000]),
+                temperature=0.5,
+                max_tokens=1500,
+            )
+        except Exception:
+            reasoning = "Cross-analysis unavailable."
+
+        ctx.relations = ctx.relations or []
+        ctx.relations.append({"reasoning": reasoning})
+        return ctx
+
+
+class QualityGateStageImpl(IPipelineStage):
+    """Verify research quality before output."""
+
+    name = "quality_gate"
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        failures = []
+
+        # Check: at least some search results
+        if not ctx.search_results:
+            failures.append("No search results found")
+
+        # Check: citations present (at least URLs in results)
+        if len(ctx.search_results) < 1:
+            failures.append("Insufficient sources (<1)")
+
+        if failures:
+            raise QualityGateFailure("; ".join(failures))
+
+        return ctx
+
+
+class OutputStageImpl(IPipelineStage):
+    """Generate final report and write to disk."""
+
+    name = "output"
+
+    def __init__(self, llm_client=None, knowledge_store=None, report_dir: str = "~/knowledge/reports"):
+        self.llm = llm_client
+        self.kb = knowledge_store
+        self.report_dir = Path(report_dir).expanduser()
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        self.report_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate summary
+        summary = f"Research on '{ctx.query}' completed at level {ctx.level.value}. "
+        summary += f"Analyzed {len(ctx.search_results)} sources, "
+        summary += f"extracted {len(ctx.entities)} entities."
+
+        # Build findings
+        findings = ""
+        for i, r in enumerate(ctx.search_results[:8]):
+            findings += f"{i+1}. **{r.get('title', 'Untitled')}** — {r.get('snippet', '')[:200]}\n"
+        if not findings:
+            findings = "No findings available."
+
+        # Build evidence rows
+        evidence_rows = ""
+        for r in ctx.search_results[:8]:
+            evidence_rows += f"| {r.get('title', 'Untitled')[:50]} | {r.get('url', '')[:50]} | MEDIUM |\n"
+
+        # Build contradictions
+        contradictions = ""
+        for c in (ctx.contradictions or []):
+            contradictions += c.get("analysis", "")[:500] + "\n"
+        if not contradictions:
+            contradictions = "No significant contradictions detected."
+
+        # Build gaps
+        gaps = "Areas not covered by current sources: further research recommended."
+        if len(ctx.search_results) < 5:
+            gaps += "\n- Limited source diversity (<5 sources)"
+
+        # Build citations
+        citations = ""
+        for i, r in enumerate(ctx.search_results[:10]):
+            citations += f"{i+1}. [{r.get('title', 'Untitled')[:80]}]({r.get('url', '')})\n"
+
+        report = REPORT_TEMPLATE.format(
+            query=ctx.query,
+            summary=summary,
+            findings=findings,
+            evidence_rows=evidence_rows,
+            contradictions=contradictions,
+            gaps=gaps,
+            citations=citations,
+        )
+
+        # Write report
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        slug = ctx.query[:40].replace(" ", "-").lower()
+        path = self.report_dir / f"{ts}_{slug}.md"
+        path.write_text(report)
+
+        ctx.report = report
+        ctx.report_path = str(path)
+        return ctx
+
+
+def _spacy_to_entity_type(spacy_label: str) -> str:
+    """Map spaCy NER labels to Minerva ontology types."""
+    mapping = {
+        "ORG": "Organization",
+        "PERSON": "Person",
+        "GPE": "Organization",
+        "PRODUCT": "Product",
+        "WORK_OF_ART": "Publication",
+        "DATE": "Event",
+        "EVENT": "Event",
+    }
+    return mapping.get(spacy_label, "Concept")

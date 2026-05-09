@@ -130,10 +130,10 @@ class TriageRouter:
 
     # --- Model plans per level ---
     LEVEL_MODELS = {
-        ResearchLevel.L0: {"agent": "qwen3.6:35b-a3b", "reasoning": None, "writer": "qwen3.6:35b-a3b"},
-        ResearchLevel.L1: {"agent": "qwen3.6:35b-a3b", "reasoning": "deepseek-r1:70b", "writer": "qwen3.5:27b"},
-        ResearchLevel.L2: {"agent": "qwen3.6:35b-a3b", "reasoning": "deepseek-r1:70b", "writer": "qwen3.5:122b-a10b"},
-        ResearchLevel.L3: {"agent": "qwen3.6:35b-a3b", "reasoning": "v4-flash", "writer": "qwen3.5:122b-a10b"},
+        ResearchLevel.L0: {"agent": "qwen3.6:35b-a3b-coding-nvfp4", "reasoning": None, "writer": "qwen3.6:35b-a3b-coding-nvfp4"},
+        ResearchLevel.L1: {"agent": "qwen3.6:35b-a3b-coding-nvfp4", "reasoning": "deepseek-r1:70b", "writer": "qwen3.5:27b"},
+        ResearchLevel.L2: {"agent": "qwen3.6:35b-a3b-coding-nvfp4", "reasoning": "deepseek-r1:70b", "writer": "qwen3.5:27b"},
+        ResearchLevel.L3: {"agent": "qwen3.6:35b-a3b-coding-nvfp4", "reasoning": "v4-flash", "writer": "qwen3.5:27b"},
         ResearchLevel.L4: {"agent": "v4-pro", "reasoning": "v4-pro-max", "writer": "v4-pro"},
     }
 
@@ -220,8 +220,10 @@ class TriageRouter:
         # Domain complexity — count technical terms
         tech_terms = [
             "algorithm", "architecture", "framework", "protocol", "compiler",
-            "kernel", "neural", "transformer", "attention", "embedding",
+            "kernel", "neural", "attention", "embedding",
             "optimization", "distributed", "concurrent", "cryptographic",
+            "transformer", "deep learning", "machine learning", "llm", "gpu",
+            "inference", "training", "fine-tuning", "tokenization",
         ]
         tech_count = sum(1 for t in tech_terms if t in lower)
         domain = min(5, 1 + tech_count // 3)
