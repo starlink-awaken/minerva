@@ -81,9 +81,8 @@ def main():
     if args.command == "research":
         return asyncio.run(_run_research(args))
     elif args.command == "mcp":
-        print("Starting Minerva MCP Server...")
-        print("Configure your MCP client (Claude Code/Codex/Cursor) to connect.")
-        return 0
+        from minerva.mcp_server.server import main as mcp_main
+        return mcp_main()
     elif args.command == "check":
         print("Minerva health check:")
         print("  [TODO] SearXNG: check localhost:8080")

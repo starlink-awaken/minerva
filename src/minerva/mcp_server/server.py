@@ -26,7 +26,6 @@ from minerva.executor.executor import ExecutionMode, ResearchExecutor, ResearchT
 
 mcp = FastMCP(
     "Minerva Deep Research",
-    description="Local-first deep research system with tiered pipelines and knowledge management",
 )
 
 # Global executor (initialized at startup)

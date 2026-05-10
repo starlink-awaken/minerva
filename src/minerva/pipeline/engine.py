@@ -347,18 +347,18 @@ def create_default_pipeline(
 
     stages = {
         ResearchLevel.L0: [
-            MultiSourceSearchStageImpl(search_engine, backends=["searxng"], max_results=5),
+            MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar"], max_results=5),
             OutputStageImpl(llm_client=llm_client, knowledge_store=knowledge_store),
         ],
         ResearchLevel.L1: [
             DecomposeStageImpl(llm_client, max_sub_questions=5),
-            MultiSourceSearchStageImpl(search_engine, backends=["searxng", "scholar"], max_results=10),
+            MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar"], max_results=10),
             CrossAnalyzeStageImpl(llm_client),
             OutputStageImpl(llm_client=llm_client, knowledge_store=knowledge_store),
         ],
         ResearchLevel.L2: [
             DecomposeStageImpl(llm_client, max_sub_questions=10),
-            MultiSourceSearchStageImpl(search_engine, backends=["searxng", "scholar"], max_results=25),
+            MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar"], max_results=25),
             EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store),
             DeepReadStageImpl(search_engine, llm_client, top_n=15),
             CrossAnalyzeStageImpl(llm_client),

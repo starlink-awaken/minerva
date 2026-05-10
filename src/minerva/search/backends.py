@@ -1,4 +1,4 @@
-"""Search backend implementations — SearXNG, Semantic Scholar, Jina, BS4."""
+"""Search backend implementations — SearXNG, Semantic Scholar, DuckDuckGo, Jina, BS4."""
 
 from __future__ import annotations
 
@@ -75,6 +75,35 @@ async def search_semantic_scholar(query: str, max_results: int = 10) -> list[Sea
             snippet=snippet,
             source="scholar",
             published_date=str(paper.get("year", "")),
+        ))
+    return results
+
+
+# ============================================================
+# DuckDuckGo Backend
+# ============================================================
+
+async def search_duckduckgo(query: str, max_results: int = 10) -> list[SearchResult]:
+    """Search web via DuckDuckGo (free, no API key required).
+
+    Uses duckduckgo-search library as SearXNG alternative when Docker unavailable.
+    """
+    try:
+        from ddgs import DDGS
+        loop = __import__("asyncio").get_event_loop()
+        results_raw = await loop.run_in_executor(
+            None, lambda: list(DDGS().text(query, max_results=max_results))
+        )
+    except Exception:
+        return []
+
+    results = []
+    for item in results_raw:
+        results.append(SearchResult(
+            title=item.get("title", ""),
+            url=item.get("href", ""),
+            snippet=item.get("body", "")[:500],
+            source="ddg",
         ))
     return results
 
