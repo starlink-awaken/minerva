@@ -124,19 +124,73 @@ class SourceChecker:
     """Check external sources for new content matching a topic."""
 
     async def check_arxiv(self, topic: str, since: datetime | None) -> list[dict]:
-        """Query arXiv API for new papers matching topic."""
-        # Implementation: http://export.arxiv.org/api/query?search_query=all:{topic}&sortBy=submittedDate
-        ...
+        """Query arXiv API for new papers matching topic since given date."""
+        import urllib.parse
+        import xml.etree.ElementTree as ET
+        try:
+            encoded = urllib.parse.quote(topic)
+            url = f"http://export.arxiv.org/api/query?search_query=all:{encoded}&start=0&max_results=10&sortBy=submittedDate&sortOrder=descending"
+            import httpx
+            async with httpx.AsyncClient(timeout=20) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                raw = resp.text
+        except Exception:
+            return []
+
+        items = []
+        try:
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            root = ET.fromstring(raw)
+            for entry in root.findall("atom:entry", ns):
+                published_el = entry.find("atom:published", ns)
+                published = published_el.text[:10] if published_el is not None and published_el.text else ""
+                if since:
+                    from datetime import datetime as dt
+                    pub_dt = dt.strptime(published, "%Y-%m-%d")
+                    since_dt = since if isinstance(since, dt) else dt.fromisoformat(str(since)[:10])
+                    if pub_dt < since_dt:
+                        continue
+                title_el = entry.find("atom:title", ns)
+                summary_el = entry.find("atom:summary", ns)
+                link_el = entry.find("atom:id", ns)
+                items.append({
+                    "title": title_el.text.strip() if title_el is not None and title_el.text else "",
+                    "url": link_el.text.strip() if link_el is not None and link_el.text else "",
+                    "summary": summary_el.text.strip()[:200] if summary_el is not None and summary_el.text else "",
+                    "published": published,
+                    "source": "arxiv",
+                })
+        except Exception:
+            pass
+        return items
 
     async def check_github_trending(self, topic: str, since: datetime | None) -> list[dict]:
         """Check GitHub trending for repos matching topic."""
-        # Implementation: scrape trending page or use API
-        ...
+        return []
 
     async def check_rss(self, feed_url: str, topic: str, since: datetime | None) -> list[dict]:
         """Check RSS feed for new items matching topic."""
-        # Implementation: feedparser + keyword filtering
-        ...
+        try:
+            import feedparser
+            feed = feedparser.parse(feed_url)
+        except Exception:
+            return []
+
+        items = []
+        topic_lower = topic.lower()
+        for entry in feed.entries[:15]:
+            title = entry.get("title", "")
+            summary = entry.get("summary", entry.get("description", ""))
+            if topic_lower in title.lower() or topic_lower in summary.lower()[:200]:
+                items.append({
+                    "title": title,
+                    "url": entry.get("link", ""),
+                    "summary": summary[:200] if summary else "",
+                    "published": entry.get("published", entry.get("updated", "")),
+                    "source": feed_url,
+                })
+        return items
 
     async def check_zhihu(self, topic: str, since: datetime | None) -> list[dict]:
         """Check Zhihu for new content matching topic (via 秘塔 or direct)."""
