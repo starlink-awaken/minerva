@@ -80,6 +80,58 @@ async def search_semantic_scholar(query: str, max_results: int = 10) -> list[Sea
 
 
 # ============================================================
+# arXiv Backend
+# ============================================================
+
+async def search_arxiv(query: str, max_results: int = 10) -> list[SearchResult]:
+    """Search preprints via arXiv API (free, no key required).
+
+    Returns paper titles, abstracts, authors, and arXiv URLs.
+    """
+    import urllib.parse
+    try:
+        encoded = urllib.parse.quote(query)
+        url = f"http://export.arxiv.org/api/query?search_query=all:{encoded}&start=0&max_results={max_results}&sortBy=relevance&sortOrder=descending"
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            raw = resp.text
+    except Exception:
+        return []
+
+    results = []
+    try:
+        import xml.etree.ElementTree as ET
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        root = ET.fromstring(raw)
+        for entry in root.findall("atom:entry", ns):
+            title_el = entry.find("atom:title", ns)
+            summary_el = entry.find("atom:summary", ns)
+            link_el = entry.find("atom:id", ns)
+            if link_el is None:
+                link_el = entry.find("atom:link", ns)
+            published_el = entry.find("atom:published", ns)
+            authors = [a.find("atom:name", ns).text for a in entry.findall("atom:author", ns) if a.find("atom:name", ns) is not None]
+
+            title = title_el.text.strip() if title_el is not None and title_el.text else ""
+            snippet = summary_el.text.strip()[:500] if summary_el is not None and summary_el.text else ""
+            url = link_el.text.strip() if link_el is not None and link_el.text else ""
+            published = published_el.text[:10] if published_el is not None and published_el.text else ""
+
+            if title:
+                results.append(SearchResult(
+                    title=title,
+                    url=url,
+                    snippet=f"{', '.join(authors[:3])}. {snippet}" if authors else snippet,
+                    source="arxiv",
+                    published_date=published,
+                ))
+    except Exception:
+        pass
+    return results
+
+
+# ============================================================
 # DuckDuckGo Backend
 # ============================================================
 

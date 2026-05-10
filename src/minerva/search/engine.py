@@ -127,7 +127,7 @@ class SearchEngine:
         Phase 0+1: searxng + scholar (free, implemented)
         Phase 2: exa, metaso, arxiv, ddg
         """
-        return self.config.get("backends") or ["ddg", "scholar"]
+        return self.config.get("backends") or ["ddg", "scholar", "arxiv"]
 
     def _get_searcher(self, backend: str):
         """Get the search function for a backend."""
@@ -168,8 +168,8 @@ class SearchEngine:
         return await search_semantic_scholar(query)
 
     async def _search_arxiv(self, query: str) -> list[SearchResult]:
-        # Phase 2: arXiv API integration
-        return []
+        from minerva.search.backends import search_arxiv
+        return await search_arxiv(query)
 
     async def _search_duckduckgo(self, query: str) -> list[SearchResult]:
         from minerva.search.backends import search_duckduckgo
