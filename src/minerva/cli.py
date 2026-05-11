@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -52,7 +53,6 @@ async def _run_research(args):
     )
     # Enterprise reasoning: DeepSeek V4 Pro for L3/L4 stages
     cloud_llm = None
-    import os
     if os.environ.get("DEEPSEEK_API_KEY"):
         cloud_llm = OpenAICompatibleClient(
             base_url="https://api.deepseek.com/v1",
