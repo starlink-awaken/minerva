@@ -333,8 +333,14 @@ def create_default_pipeline(
     knowledge_store,
     creative_tool=None,
     nlp_pipeline_zh=None,
+    cloud_llm_client=None,
 ) -> Pipeline:
-    """Create pipeline with default stage configurations for each level."""
+    """Create pipeline with default stage configurations for each level.
+
+    L0-L2 use local llm_client. L3-L4 use cloud_llm_client (DeepSeek V4 Pro)
+    for enterprise-grade counter-argument and multi-model voting reasoning.
+    Falls back to llm_client if cloud_llm_client is None.
+    """
 
     from minerva.pipeline.stages import (
         DecomposeStageImpl,
@@ -348,6 +354,10 @@ def create_default_pipeline(
         MultiModelVotingStageImpl,
         ExtendedOutputStageImpl,
     )
+
+    # L3/L4 use cloud client for enterprise reasoning (DeepSeek V4 Pro).
+    # Falls back to local qwen3.6:27b if cloud is unavailable.
+    reasoner = cloud_llm_client or llm_client
 
     stages = {
         ResearchLevel.L0: [
@@ -374,8 +384,8 @@ def create_default_pipeline(
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa", "brave"], max_results=35),
             EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
             DeepReadStageImpl(search_engine, llm_client, top_n=20),
-            CrossAnalyzeStageImpl(llm_client),
-            CounterArgumentStageImpl(llm_client),
+            CrossAnalyzeStageImpl(reasoner),
+            CounterArgumentStageImpl(reasoner),
             QualityGateStageImpl(),
             OutputStageImpl(llm_client=llm_client, knowledge_store=knowledge_store),
         ],
@@ -384,9 +394,9 @@ def create_default_pipeline(
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa", "brave"], max_results=50),
             EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
             DeepReadStageImpl(search_engine, llm_client, top_n=25),
-            CrossAnalyzeStageImpl(llm_client),
-            CounterArgumentStageImpl(llm_client),
-            MultiModelVotingStageImpl(llm_client),
+            CrossAnalyzeStageImpl(reasoner),
+            CounterArgumentStageImpl(reasoner),
+            MultiModelVotingStageImpl(reasoner),
             QualityGateStageImpl(),
             ExtendedOutputStageImpl(llm_client=llm_client, knowledge_store=knowledge_store),
         ],

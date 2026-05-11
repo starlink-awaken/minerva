@@ -50,6 +50,16 @@ async def _run_research(args):
         base_url=config.llm.base_url,
         model=config.llm.models["agent"],
     )
+    # Enterprise reasoning: DeepSeek V4 Pro for L3/L4 stages
+    cloud_llm = None
+    import os
+    if os.environ.get("DEEPSEEK_API_KEY"):
+        cloud_llm = OpenAICompatibleClient(
+            base_url="https://api.deepseek.com/v1",
+            api_key=os.environ["DEEPSEEK_API_KEY"],
+            model="deepseek-chat",  # V4 Pro
+            timeout=180,
+        )
     search = SearchEngine({
         "searxng_url": config.search.searxng_url,
         "metaso_api_key": config.search.metaso_api_key,
@@ -81,7 +91,7 @@ async def _run_research(args):
         router = TriageRouter(llm)
         triage_obj = await router.classify(args.query)
 
-    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh)
+    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh, cloud_llm_client=cloud_llm)
     ctx = await pipeline.run(args.query, level, triage_obj)
 
     if ctx.report:
