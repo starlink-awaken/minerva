@@ -268,7 +268,7 @@ class ResearchExecutor:
         self.source_checker = SourceChecker()
 
         # Restore persisted state
-        self._restore_state()
+        self.restore_state()
 
     # ============================================================
     # Public API
@@ -539,10 +539,6 @@ class ResearchExecutor:
     # ============================================================
     # Private: State Persistence
     # ============================================================
-
-    def _restore_state(self):
-        """Legacy wrapper — now delegates to restore_state()."""
-        self.restore_state()
 
     def _persist_scheduled_tasks(self):
         """Persist scheduled task configs to disk."""

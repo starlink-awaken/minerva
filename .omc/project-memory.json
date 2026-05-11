@@ -25,7 +25,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -3",
+    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && pwd && .venv/bin/python -m pytest tests/ -q --tb=line 2>&1 | tail -15",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
