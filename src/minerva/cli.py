@@ -56,11 +56,17 @@ async def _run_research(args):
         "exa_api_key": config.search.exa_api_key,
     })
 
-    # Load spaCy NLP pipeline for entity extraction
+    # Load spaCy NLP pipelines for entity extraction
     nlp = None
+    nlp_zh = None
     try:
         import spacy
         nlp = spacy.load(config.nlp.spacy_model)
+    except Exception:
+        pass
+    try:
+        import spacy
+        nlp_zh = spacy.load(config.nlp.spacy_model_zh)
     except Exception:
         pass
 
@@ -75,7 +81,7 @@ async def _run_research(args):
         router = TriageRouter(llm)
         triage_obj = await router.classify(args.query)
 
-    pipeline = create_default_pipeline(llm, search, nlp, None)
+    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh)
     ctx = await pipeline.run(args.query, level, triage_obj)
 
     if ctx.report:

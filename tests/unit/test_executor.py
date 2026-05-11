@@ -46,8 +46,10 @@ class TestResearchExecutor:
 
     def test_cost_guard_record_increments_spend(self):
         """Test recording actual cost increments current spend."""
+        import os, tempfile
         from minerva.executor.executor import CostGuard
-        cg = CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_cg3.jsonl")
+        path = os.path.join(tempfile.gettempdir(), f"test_cg_{os.getpid()}_3.jsonl")
+        cg = CostGuard(monthly_budget=50.0, ledger_path=path)
         cg.record(15.0)
         assert cg.current_spend == 15.0
         cg.record(5.0)
@@ -55,8 +57,10 @@ class TestResearchExecutor:
 
     def test_cost_guard_get_status(self):
         """Test get_status returns correct budget info."""
+        import os, tempfile
         from minerva.executor.executor import CostGuard
-        cg = CostGuard(monthly_budget=100.0, ledger_path="/tmp/test_cg4.jsonl")
+        path = os.path.join(tempfile.gettempdir(), f"test_cg_{os.getpid()}_4.jsonl")
+        cg = CostGuard(monthly_budget=100.0, ledger_path=path)
         cg.record(30.0)
         status = cg.get_status()
         assert status["monthly_budget"] == 100.0

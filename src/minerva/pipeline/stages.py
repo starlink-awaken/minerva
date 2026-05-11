@@ -135,14 +135,20 @@ class MultiSourceSearchStageImpl(IPipelineStage):
 
 
 class EntityExtractionStageImpl(IPipelineStage):
-    """Extract entities using spaCy NLP + LLM fallback."""
+    """Extract entities using spaCy NLP + LLM fallback with language routing."""
 
     name = "entity_extraction"
 
-    def __init__(self, nlp_pipeline, llm_client, knowledge_store=None):
-        self.nlp = nlp_pipeline  # spaCy Language
+    def __init__(self, nlp_pipeline, llm_client, knowledge_store=None, nlp_zh=None):
+        self.nlp = nlp_pipeline  # spaCy Language (English)
+        self.nlp_zh = nlp_zh      # spaCy Language (Chinese)
         self.llm = llm_client
         self.kb = knowledge_store
+
+    def _detect_language(self, text: str) -> str:
+        """Simple language detection based on character set."""
+        zh_chars = sum(1 for c in text if '一' <= c <= '鿿')
+        return "zh" if zh_chars > len(text) * 0.05 else "en"
 
     async def execute(self, ctx: ResearchContext) -> ResearchContext:
         entities = []
@@ -153,8 +159,9 @@ class EntityExtractionStageImpl(IPipelineStage):
             text = result.get("snippet", "")
             if not text:
                 continue
-            # spaCy NER
-            doc = self.nlp(text[:1000])
+            lang = self._detect_language(text)
+            nlp = self.nlp_zh if lang == "zh" and self.nlp_zh else self.nlp
+            doc = nlp(text[:1000])
             for ent in doc.ents:
                 if ent.label_ in ("ORG", "PERSON", "GPE", "PRODUCT", "WORK_OF_ART"):
                     eid = f"ent-{len(entities)}-{ent.label_}"

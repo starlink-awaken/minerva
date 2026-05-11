@@ -332,6 +332,7 @@ def create_default_pipeline(
     nlp_pipeline,
     knowledge_store,
     creative_tool=None,
+    nlp_pipeline_zh=None,
 ) -> Pipeline:
     """Create pipeline with default stage configurations for each level."""
 
@@ -362,7 +363,7 @@ def create_default_pipeline(
         ResearchLevel.L2: [
             DecomposeStageImpl(llm_client, max_sub_questions=10),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa"], max_results=25),
-            EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store),
+            EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
             DeepReadStageImpl(search_engine, llm_client, top_n=15),
             CrossAnalyzeStageImpl(llm_client),
             QualityGateStageImpl(),
@@ -371,7 +372,7 @@ def create_default_pipeline(
         ResearchLevel.L3: [
             DecomposeStageImpl(llm_client, max_sub_questions=15),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa"], max_results=35),
-            EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store),
+            EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
             DeepReadStageImpl(search_engine, llm_client, top_n=20),
             CrossAnalyzeStageImpl(llm_client),
             CounterArgumentStageImpl(llm_client),
@@ -381,7 +382,7 @@ def create_default_pipeline(
         ResearchLevel.L4: [
             DecomposeStageImpl(llm_client, max_sub_questions=15),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa"], max_results=50),
-            EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store),
+            EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
             DeepReadStageImpl(search_engine, llm_client, top_n=25),
             CrossAnalyzeStageImpl(llm_client),
             CounterArgumentStageImpl(llm_client),
