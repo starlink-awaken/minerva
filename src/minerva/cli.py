@@ -29,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
     # daemon (Phase 2 stub)
     sub.add_parser("daemon", help="Start background daemon (Phase 2)")
 
+    # maintenance (Phase 3)
+    mt = sub.add_parser("maintenance", help="Knowledge base maintenance — staleness, gaps, contradictions")
+    mt.add_argument("--action", default="all", choices=["all", "staleness", "gaps", "contradictions"],
+                    help="Maintenance action to run (default: all)")
+
     return parser
 
 
@@ -103,7 +108,66 @@ def main():
     elif args.command == "daemon":
         from minerva.executor.daemon import main as daemon_main
         return daemon_main()
+    elif args.command == "maintenance":
+        return _run_maintenance(args)
 
+    return 0
+
+
+def _run_maintenance(args) -> int:
+    """Run knowledge base maintenance."""
+    from minerva.maintenance.staleness import StalenessChecker
+    from minerva.maintenance.gap_analyzer import GapAnalyzer, get_improvement_suggestions
+    from minerva.maintenance.contradiction import detect_contradictions_rule_based
+    from pathlib import Path
+
+    action = args.action
+    report_dir = "~/knowledge/reports"
+
+    if action in ("all", "staleness"):
+        print("=== Staleness Check ===")
+        checker = StalenessChecker(report_dir=report_dir)
+        report = checker.scan()
+        print(report.summary)
+        if report.stale_entries:
+            for e in report.stale_entries[:5]:
+                print(f"  [{e.age_days}d] {e.title[:60]} — {e.reason[:80]}")
+
+    if action in ("all", "gaps"):
+        print("\n=== Gap Analysis ===")
+        suggestions = get_improvement_suggestions(report_dir=report_dir)
+        for s in suggestions:
+            print(f"  - {s}")
+
+    if action in ("all", "contradictions"):
+        print("\n=== Contradiction Detection ===")
+        report_path = Path(report_dir).expanduser()
+        report_files = sorted(report_path.glob("*.md"))
+        all_entries = []
+        for f in report_files[-20:]:
+            import re
+            try:
+                content = f.read_text()
+            except Exception:
+                continue
+            for match in re.finditer(r'\|\s*(.+?)\s*\|\s*(https?://[^\s|]+|[^|]+?)\s*\|', content):
+                claim = match.group(1).strip()
+                source = match.group(2).strip()
+                if len(claim) > 10 and claim not in ("Claim", "---"):
+                    all_entries.append({"claim": claim, "source": source, "file": f.name})
+        if all_entries:
+            contradictions = detect_contradictions_rule_based(all_entries)
+            print(f"Scanned {len(all_entries)} claims from {len(report_files)} reports.")
+            if contradictions:
+                print(f"Found {len(contradictions)} potential contradictions:")
+                for c in contradictions[:5]:
+                    print(f"  [{c.severity}] {c.claim_a[:50]} vs {c.claim_b[:50]}")
+            else:
+                print("No contradictions detected.")
+        else:
+            print("No claims found to analyze.")
+
+    print("\nMaintenance complete.")
     return 0
 
 
