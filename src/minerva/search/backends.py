@@ -132,6 +132,56 @@ async def search_arxiv(query: str, max_results: int = 10) -> list[SearchResult]:
 
 
 # ============================================================
+# 秘塔AI搜索 Backend
+# ============================================================
+
+async def search_metaso(query: str, api_key: str | None = None, max_results: int = 10) -> list[SearchResult]:
+    """Search via 秘塔AI搜索 (Metaso) — Chinese-optimized AI search.
+
+    Requires API key from https://metaso.cn/search-api/api-keys
+    Credits: ~3 per search, free 5000 on signup.
+    """
+    if not api_key:
+        api_key = __import__("os").environ.get("METASO_API_KEY", "")
+    if not api_key:
+        return []
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://metaso.cn/api/v1/search",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "q": query,
+                    "scope": "webpage",
+                    "size": str(max_results),
+                    "includeSummary": False,
+                    "includeRawContent": False,
+                    "conciseSnippet": False,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        return []
+
+    results = []
+    for item in data.get("webpages", []):
+        results.append(SearchResult(
+            title=item.get("title", ""),
+            url=item.get("link", ""),
+            snippet=item.get("snippet", "")[:500],
+            source="metaso",
+            published_date=item.get("date", ""),
+        ))
+    return results
+
+
+# ============================================================
 # DuckDuckGo Backend
 # ============================================================
 

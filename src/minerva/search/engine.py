@@ -156,8 +156,8 @@ class SearchEngine:
         return await search_searxng(query, base_url=self.config.get("searxng_url", "http://localhost:8080"))
 
     async def _search_metaso(self, query: str) -> list[SearchResult]:
-        # Phase 2: 秘塔AI搜索 integration
-        return []
+        from minerva.search.backends import search_metaso
+        return await search_metaso(query, api_key=self.config.get("metaso_api_key"))
 
     async def _search_exa(self, query: str) -> list[SearchResult]:
         # Phase 2: Exa API integration

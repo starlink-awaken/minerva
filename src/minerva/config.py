@@ -136,6 +136,14 @@ class MinervaConfig:
                 lancedb_path=k.get("lancedb_path", config.knowledge.lancedb_path),
                 wiki_path=k.get("wiki_path", config.knowledge.wiki_path),
             )
+
+        # Tier 2 search APIs
+        tier2 = data.get("tier2", {})
+        search_apis = tier2.get("search_apis", {})
+        metaso_cfg = search_apis.get("metaso", {})
+        if metaso_cfg.get("api_key") and metaso_cfg["api_key"] != "${METASO_API_KEY}":
+            config.search.metaso_api_key = metaso_cfg["api_key"]
+
         if "nlp" in tier1:
             n = tier1["nlp"]
             config.nlp = NLPConfig(
@@ -168,6 +176,8 @@ class MinervaConfig:
         """Apply environment variable overrides."""
         if v := os.environ.get("DEEPSEEK_API_KEY"):
             config.cloud.deepseek_api_key = v
+        if v := os.environ.get("METASO_API_KEY"):
+            config.search.metaso_api_key = v
         if v := os.environ.get("EXA_API_KEY"):
             config.search.exa_api_key = v
         if v := os.environ.get("JINA_API_KEY"):

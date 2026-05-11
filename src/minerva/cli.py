@@ -45,7 +45,10 @@ async def _run_research(args):
         base_url=config.llm.base_url,
         model=config.llm.models["agent"],
     )
-    search = SearchEngine({"searxng_url": config.search.searxng_url})
+    search = SearchEngine({
+        "searxng_url": config.search.searxng_url,
+        "metaso_api_key": config.search.metaso_api_key,
+    })
 
     # Load spaCy NLP pipeline for entity extraction
     nlp = None
