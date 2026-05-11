@@ -53,7 +53,7 @@ tier2:
 
   search_apis:
     exa:
-      enabled: false
+      enabled: true
       api_key: "${EXA_API_KEY}"
       free_queries_per_month: 1000
     jina:

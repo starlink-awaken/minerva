@@ -80,6 +80,46 @@ async def search_semantic_scholar(query: str, max_results: int = 10) -> list[Sea
 
 
 # ============================================================
+# Exa API Backend
+# ============================================================
+
+async def search_exa(query: str, api_key: str, max_results: int = 10) -> list[SearchResult]:
+    """Search via Exa API — semantic web search with content extraction.
+
+    Requires API key from https://exa.ai. Free tier: 1000 queries/month.
+    """
+    if not api_key:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://api.exa.ai/search",
+                headers={
+                    "x-api-key": api_key,
+                    "Content-Type": "application/json",
+                },
+                json={"query": query, "numResults": max_results, "useAutoprompt": True},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        return []
+
+    results = []
+    for item in data.get("results", []):
+        snippet = item.get("text", "")[:500] if item.get("text") else ""
+        published = item.get("publishedDate", "")
+        results.append(SearchResult(
+            title=item.get("title", ""),
+            url=item.get("url", ""),
+            snippet=snippet,
+            source="exa",
+            published_date=published[:10] if published else "",
+        ))
+    return results
+
+
+# ============================================================
 # arXiv Backend
 # ============================================================
 

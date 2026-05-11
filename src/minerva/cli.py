@@ -53,6 +53,7 @@ async def _run_research(args):
     search = SearchEngine({
         "searxng_url": config.search.searxng_url,
         "metaso_api_key": config.search.metaso_api_key,
+        "exa_api_key": config.search.exa_api_key,
     })
 
     # Load spaCy NLP pipeline for entity extraction
