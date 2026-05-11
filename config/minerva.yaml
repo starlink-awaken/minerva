@@ -61,7 +61,7 @@ tier2:
       api_key: "${JINA_API_KEY}"
       free_tokens_per_month: 10000000
     metaso:
-      enabled: false
+      enabled: true
       api_key: "${METASO_API_KEY}"
     semantic_scholar:
       enabled: true
