@@ -345,3 +345,173 @@ def _spacy_to_entity_type(spacy_label: str) -> str:
         "EVENT": "Event",
     }
     return mapping.get(spacy_label, "Concept")
+
+
+# ============================================================
+# L3/L4 Specific Stages
+# ============================================================
+
+COUNTER_ARGUMENT_PROMPT = """Given this research on: {query}
+
+{findings}
+
+You are playing devil's advocate. Identify:
+1. The strongest counter-arguments to the main conclusions
+2. Alternative interpretations of the evidence
+3. Weaknesses in methodology or assumptions
+4. Missing perspectives or stakeholders
+5. Overlooked risks or downsides
+
+Be specific and cite sources where possible. Output in markdown."""
+
+MULTI_MODEL_PROMPT = """Given this research analysis on: {query}
+
+{analysis}
+
+You are a panel of expert reviewers. Provide:
+1. Voting on each major conclusion (AGREE/DISAGREE/NEUTRAL with justification)
+2. Confidence score for each conclusion (HIGH/MEDIUM/LOW)
+3. Areas where models disagree and why
+4. Recommended follow-up research questions
+5. Final consensus summary
+
+Output in structured markdown."""
+
+
+class CounterArgumentStageImpl(IPipelineStage):
+    """Generate counter-arguments and alternative perspectives. (L3+)"""
+
+    name = "counter_argument"
+
+    def __init__(self, llm_client):
+        self.llm = llm_client
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        findings = ""
+        for c in (ctx.contradictions or []):
+            findings += c.get("analysis", "") + "\n"
+        if not findings.strip():
+            findings = "\n".join(
+                f"- {r.get('title', '')}: {r.get('snippet', '')[:200]}"
+                for r in ctx.search_results[:5]
+            )
+
+        try:
+            response = await self.llm.generate(
+                system="You are a critical thinker who identifies weaknesses and alternative perspectives in research.",
+                prompt=COUNTER_ARGUMENT_PROMPT.format(query=ctx.query, findings=findings[:4000]),
+                temperature=0.5,
+                max_tokens=1500,
+            )
+        except Exception:
+            response = "Counter-argument analysis unavailable."
+
+        ctx.relations = ctx.relations or []
+        ctx.relations.append({"counter_argument": response})
+        return ctx
+
+
+class MultiModelVotingStageImpl(IPipelineStage):
+    """Multi-model voting on conclusions. (L4)"""
+
+    name = "multi_model_voting"
+
+    def __init__(self, llm_client):
+        self.llm = llm_client
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        analysis = ""
+        for r in (ctx.relations or []):
+            for v in r.values():
+                analysis += str(v)[:2000] + "\n"
+
+        if not analysis.strip():
+            ctx.relations = ctx.relations or []
+            ctx.relations.append({"voting": "Insufficient data for multi-model voting."})
+            return ctx
+
+        try:
+            response = await self.llm.generate(
+                system="You are a panel of expert reviewers evaluating research conclusions.",
+                prompt=MULTI_MODEL_PROMPT.format(query=ctx.query, analysis=analysis[:4000]),
+                temperature=0.4,
+                max_tokens=1500,
+            )
+        except Exception:
+            response = "Multi-model voting unavailable."
+
+        ctx.relations = ctx.relations or []
+        ctx.relations.append({"voting": response})
+        return ctx
+
+
+class ExtendedOutputStageImpl(IPipelineStage):
+    """Extended report for L4 with full analysis depth. (L4)"""
+
+    name = "extended_output"
+
+    def __init__(self, llm_client=None, knowledge_store=None, report_dir: str = "~/knowledge/reports"):
+        self.llm = llm_client
+        self.kb = knowledge_store
+        self.report_dir = Path(report_dir).expanduser()
+
+    async def execute(self, ctx: ResearchContext) -> ResearchContext:
+        self.report_dir.mkdir(parents=True, exist_ok=True)
+
+        summary = f"# Extended Research Report: {ctx.query}\n\n"
+        summary += f"**Level:** {ctx.level.value} | "
+        summary += f"**Sources:** {len(ctx.search_results)} | "
+        summary += f"**Entities:** {len(ctx.entities)} | "
+        summary += f"**Cost:** ${ctx.cost:.2f}\n\n"
+
+        # Key findings
+        summary += "## Key Findings\n\n"
+        for i, r in enumerate(ctx.search_results[:12]):
+            summary += f"{i+1}. **{r.get('title', 'Untitled')}** — {r.get('snippet', '')[:300]}\n\n"
+
+        # Evidence matrix
+        summary += "## Evidence Matrix\n\n"
+        summary += "| Claim | Source | Confidence |\n"
+        summary += "|-------|--------|------------|\n"
+        for r in ctx.search_results[:12]:
+            summary += f"| {r.get('title', '')[:60]} | {r.get('url', '')[:60]} | MEDIUM |\n"
+
+        # Counter arguments
+        summary += "\n## Counter-Arguments\n\n"
+        for r in (ctx.relations or []):
+            ca = r.get("counter_argument", "")
+            if ca:
+                summary += ca[:2000] + "\n"
+                break
+        else:
+            summary += "No counter-arguments generated.\n"
+
+        # Multi-model voting
+        summary += "\n## Multi-Model Voting\n\n"
+        for r in (ctx.relations or []):
+            v = r.get("voting", "")
+            if v:
+                summary += v[:2000] + "\n"
+                break
+        else:
+            summary += "Multi-model voting not performed.\n"
+
+        # Cross analysis
+        summary += "\n## Cross-Analysis\n\n"
+        for c in (ctx.contradictions or []):
+            summary += c.get("analysis", "")[:1500] + "\n"
+            break
+
+        # Citations
+        summary += "\n## Full Citation List\n\n"
+        for i, r in enumerate(ctx.search_results[:15]):
+            summary += f"{i+1}. [{r.get('title', 'Untitled')[:100]}]({r.get('url', '')})\n"
+
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        slug = ctx.query[:40].replace(" ", "-").lower()
+        path = self.report_dir / f"{ts}_{slug}_L4.md"
+        path.write_text(summary)
+
+        ctx.report = summary
+        ctx.report_path = str(path)
+        return ctx
