@@ -95,21 +95,10 @@ class ContradictionDetector:
         if topic_filter and topic_filter.lower() not in content.lower():
             return []
 
-        entries = []
-        # Extract evidence matrix rows: | claim | source |
-        for match in re.finditer(
-            r'\|\s*(.+?)\s*\|\s*(https?://[^\s|]+|[^|]+?)\s*\|',
-            content
-        ):
-            claim = match.group(1).strip()
-            source = match.group(2).strip()
-            if len(claim) > 10 and claim not in ("Claim", "---", "-------"):
-                entries.append({
-                    "claim": claim,
-                    "source": source,
-                    "file": filepath.name,
-                })
-        return entries
+        # Use shared extraction
+        all_entries = extract_claims(str(self.report_dir), limit=100)
+        matching = [e for e in all_entries if e.get("file") == filepath.name]
+        return matching
 
     async def _detect_with_llm(
         self, entries: list[dict], topic_filter: str | None = None
@@ -167,6 +156,30 @@ Return only contradictions that exist, as a JSON array. If none found, return em
             pass
 
         return []
+
+
+def extract_claims(report_dir: str = "~/knowledge/reports", limit: int = 20) -> list[dict]:
+    """Extract claim-source pairs from recent research reports.
+
+    Shared by CLI maintenance and ContradictionDetector.
+    """
+    report_path = Path(report_dir).expanduser()
+    report_files = sorted(report_path.glob("*.md"), reverse=True)[:limit]
+    all_entries = []
+    for f in report_files:
+        try:
+            content = f.read_text()
+        except Exception:
+            continue
+        for match in re.finditer(
+            r'\|\s*(.+?)\s*\|\s*(https?://[^\s|]+|[^|]+?)\s*\|',
+            content
+        ):
+            claim = match.group(1).strip()
+            source = match.group(2).strip()
+            if len(claim) > 10 and claim not in ("Claim", "---", "-------"):
+                all_entries.append({"claim": claim, "source": source, "file": f.name})
+    return all_entries
 
 
 def detect_contradictions_rule_based(entries: list[dict]) -> list[Contradiction]:

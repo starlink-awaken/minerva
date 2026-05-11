@@ -16,22 +16,50 @@ class GraphConfig:
 
 @dataclass
 class GraphEntity:
-    """An entity in the knowledge graph."""
+    """An entity in the knowledge graph.
+
+    Can be constructed from minerva.knowledge.store.Entity via from_entity().
+    """
     id: str
     name: str
     entity_type: str
     properties: dict = field(default_factory=dict)
     confidence: str = "MEDIUM"
 
+    @classmethod
+    def from_kb_entity(cls, entity) -> GraphEntity:
+        """Create GraphEntity from minerva.knowledge.store.Entity."""
+        return cls(
+            id=entity.id,
+            name=entity.name,
+            entity_type=getattr(entity, 'type', 'Concept'),
+            properties=getattr(entity, 'properties', {}),
+            confidence=getattr(entity, 'confidence', 'MEDIUM'),
+        )
+
 
 @dataclass
 class GraphRelation:
-    """A relation between two entities in the knowledge graph."""
+    """A relation between two entities in the knowledge graph.
+
+    Can be constructed from minerva.knowledge.store.Relation via from_relation().
+    """
     source_id: str
     target_id: str
     relation_type: str
     properties: dict = field(default_factory=dict)
     confidence: str = "MEDIUM"
+
+    @classmethod
+    def from_relation(cls, relation) -> GraphRelation:
+        """Create GraphRelation from minerva.knowledge.store.Relation."""
+        return cls(
+            source_id=getattr(relation, 'subject_id', ''),
+            target_id=getattr(relation, 'object_id', ''),
+            relation_type=getattr(relation, 'predicate', 'RELATES'),
+            properties=getattr(relation, 'properties', {}),
+            confidence=getattr(relation, 'confidence', 'MEDIUM'),
+        )
 
 
 class GraphBridge:

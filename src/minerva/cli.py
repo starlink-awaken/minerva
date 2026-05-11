@@ -141,23 +141,11 @@ def _run_maintenance(args) -> int:
 
     if action in ("all", "contradictions"):
         print("\n=== Contradiction Detection ===")
-        report_path = Path(report_dir).expanduser()
-        report_files = sorted(report_path.glob("*.md"))
-        all_entries = []
-        for f in report_files[-20:]:
-            import re
-            try:
-                content = f.read_text()
-            except Exception:
-                continue
-            for match in re.finditer(r'\|\s*(.+?)\s*\|\s*(https?://[^\s|]+|[^|]+?)\s*\|', content):
-                claim = match.group(1).strip()
-                source = match.group(2).strip()
-                if len(claim) > 10 and claim not in ("Claim", "---"):
-                    all_entries.append({"claim": claim, "source": source, "file": f.name})
+        from minerva.maintenance.contradiction import extract_claims
+        all_entries = extract_claims(report_dir, limit=20)
         if all_entries:
             contradictions = detect_contradictions_rule_based(all_entries)
-            print(f"Scanned {len(all_entries)} claims from {len(report_files)} reports.")
+            print(f"Scanned {len(all_entries)} claims from reports.")
             if contradictions:
                 print(f"Found {len(contradictions)} potential contradictions:")
                 for c in contradictions[:5]:
