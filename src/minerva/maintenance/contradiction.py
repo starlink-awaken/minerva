@@ -33,7 +33,10 @@ class ContradictionReport:
     @property
     def summary(self) -> str:
         if not self.contradictions:
-            return f"Scanned {self.total_reports_scanned} reports, {self.total_claims_checked} claims. No contradictions found."
+            return (
+                f"Scanned {self.total_reports_scanned} reports, "
+                f"{self.total_claims_checked} claims. No contradictions found."
+            )
         return (
             f"Found {len(self.contradictions)} contradictions "
             f"({self.high_severity_count} HIGH) "

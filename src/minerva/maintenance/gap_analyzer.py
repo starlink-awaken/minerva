@@ -180,7 +180,7 @@ class GapAnalyzer:
 
         # Flag topics with only 1 report
         single_report_topics = [t for t, c in report_topics.items() if c == 1 and t not in {
-            "research", "report", "report", "architecture", "evolution", "language",
+            "research", "report", "architecture", "evolution", "language",
             "model", "transformer", "python", "asyncio", "openai", "google"
         }]
         if len(single_report_topics) > 3:
