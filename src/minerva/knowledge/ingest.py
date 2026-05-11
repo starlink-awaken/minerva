@@ -143,12 +143,8 @@ class KnowledgeIngester:
 
     @staticmethod
     def _spacy_to_entity_type(label: str) -> str:
-        mapping = {
-            "ORG": "Organization", "PERSON": "Person", "GPE": "Organization",
-            "PRODUCT": "Product", "WORK_OF_ART": "Publication",
-            "EVENT": "Event",
-        }
-        return mapping.get(label, "Concept")
+        from minerva.pipeline.stages import _spacy_to_entity_type as convert
+        return convert(label)
 
     def _save_content(self, source: str, text: str, source_type: str):
         """Save raw extracted text."""
