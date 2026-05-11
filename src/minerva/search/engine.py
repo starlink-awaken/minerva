@@ -138,6 +138,7 @@ class SearchEngine:
             "scholar": self._search_semantic_scholar,
             "arxiv": self._search_arxiv,
             "ddg": self._search_duckduckgo,
+            "brave": self._search_brave,
         }
         return searchers.get(backend)
 
@@ -174,6 +175,10 @@ class SearchEngine:
     async def _search_duckduckgo(self, query: str) -> list[SearchResult]:
         from minerva.search.backends import search_duckduckgo
         return await search_duckduckgo(query)
+
+    async def _search_brave(self, query: str) -> list[SearchResult]:
+        from minerva.search.backends import search_brave
+        return await search_brave(query, api_key=self.config.get("brave_api_key", ""))
 
     # --- Content extraction ---
 

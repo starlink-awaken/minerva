@@ -222,6 +222,46 @@ async def search_metaso(query: str, api_key: str | None = None, max_results: int
 
 
 # ============================================================
+# Brave Search Backend
+# ============================================================
+
+async def search_brave(query: str, api_key: str, max_results: int = 10) -> list[SearchResult]:
+    """Search via Brave Search API — independent index of 35B pages.
+
+    Free tier: 2000 queries/month. https://brave.com/search/api/
+    """
+    if not api_key:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://api.search.brave.com/res/v1/web/search",
+                headers={
+                    "X-Subscription-Token": api_key,
+                    "Accept": "application/json",
+                    "Accept-Encoding": "gzip",
+                },
+                params={"q": query, "count": min(max_results, 20)},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        return []
+
+    results = []
+    web = data.get("web", {})
+    for item in web.get("results", []):
+        results.append(SearchResult(
+            title=item.get("title", ""),
+            url=item.get("url", ""),
+            snippet=item.get("description", "")[:500],
+            source="brave",
+            published_date=item.get("age", ""),
+        ))
+    return results
+
+
+# ============================================================
 # DuckDuckGo Backend
 # ============================================================
 

@@ -17,7 +17,6 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
-import croniter
 import structlog
 
 from minerva.pipeline.engine import Pipeline, ResearchContext
@@ -331,37 +330,83 @@ class ResearchExecutor:
         return result
 
     async def schedule(self, task: ResearchTask) -> str:
-        """Schedule recurring research. Returns task_id.
-
-        Flow:
-        1. Validate cron expression
-        2. Calculate next run time
-        3. Create background asyncio task
-        4. Persist scheduled task config
-        5. Return task_id
-        """
+        """Schedule recurring research via APScheduler. Returns task_id."""
         task_id = task.id or str(uuid.uuid4())[:8]
         task.id = task_id
 
-        # Validate cron
-        cron = croniter.croniter(task.cron_expr, datetime.now())
-        next_run = cron.get_next(datetime)
+        self._ensure_scheduler()
 
-        async def _schedule_loop():
-            await asyncio.sleep(max(0, (next_run - datetime.now()).total_seconds()))
-            while True:
-                try:
-                    result = await self.execute_now(task)
-                    logger.info("scheduled_task_complete", task_id=task_id, cron=task.cron_expr)
-                except Exception as exc:
-                    logger.error("scheduled_task_failed", task_id=task_id, error=str(exc))
-                next_run = cron.get_next(datetime)
-                await asyncio.sleep(max(60, (next_run - datetime.now()).total_seconds()))
+        async def _execute_scheduled():
+            try:
+                await self.execute_now(task)
+                logger.info("scheduled_task_complete", task_id=task_id, cron=task.cron_expr)
+            except Exception as exc:
+                logger.error("scheduled_task_failed", task_id=task_id, error=str(exc))
 
-        self.scheduled_tasks[task_id] = asyncio.create_task(_schedule_loop())
+        from apscheduler.triggers.cron import CronTrigger
+        job = self._apscheduler.add_job(
+            _execute_scheduled,
+            CronTrigger.from_crontab(task.cron_expr),
+            id=task_id,
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        self.scheduled_tasks[task_id] = job
         self._persist_scheduled_tasks()
-        logger.info("schedule_created", task_id=task_id, cron=task.cron_expr, next_run=str(next_run))
+        next_run = str(job.next_run_time) if job.next_run_time else "now"
+        logger.info("schedule_created", task_id=task_id, cron=task.cron_expr, next_run=next_run)
         return task_id
+
+    async def watch(self, task: ResearchTask) -> str:
+        """Watch topics for new content via APScheduler. Returns task_id."""
+        task_id = task.id or str(uuid.uuid4())[:8]
+        task.id = task_id
+
+        interval_secs = {"hourly": 3600, "daily": 86400, "weekly": 604800}.get(
+            task.check_interval, 86400
+        )
+        self._ensure_scheduler()
+
+        async def _watch_check():
+            for source in task.sources or []:
+                try:
+                    new_items = await self.source_checker.check(
+                        source, task.topic, None
+                    )
+                    for item in new_items:
+                        watch_task = ResearchTask(
+                            id=str(uuid.uuid4())[:8],
+                            query=f"[WATCH: {task.topic}] {item.get('title', item.get('summary', ''))}",
+                            mode=ExecutionMode.IMMEDIATE,
+                            level="L2",
+                            max_cost=task.max_cost,
+                        )
+                        await self.execute_now(watch_task)
+                        self._notify(task, None)
+                except Exception as exc:
+                    logger.error("watch_check_failed", source=source, error=str(exc))
+
+        job = self._apscheduler.add_job(
+            _watch_check,
+            "interval",
+            seconds=interval_secs,
+            id=task_id,
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        self.watch_tasks[task_id] = job
+        self._persist_watch_configs()
+        logger.info("watch_created", task_id=task_id, topic=task.topic, sources=task.sources)
+        return task_id
+
+    def _ensure_scheduler(self):
+        """Lazy-init APScheduler with SQLite persistence."""
+        if hasattr(self, "_apscheduler"):
+            return
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.jobstores.memory import MemoryJobStore
+        self._apscheduler = AsyncIOScheduler(jobstores={"default": MemoryJobStore()})
+        self._apscheduler.start()
 
     async def watch(self, task: ResearchTask) -> str:
         """Watch topics for new content. Returns task_id.
