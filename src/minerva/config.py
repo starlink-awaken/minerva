@@ -47,6 +47,12 @@ class KnowledgeConfig:
 
 
 @dataclass
+class NLPConfig:
+    spacy_model: str = "en_core_web_sm"
+    spacy_model_zh: str = "zh_core_web_sm"
+
+
+@dataclass
 class ExecutionConfig:
     monthly_budget_usd: float = 50.0
     warn_threshold: float = 0.80
@@ -70,6 +76,7 @@ class MinervaConfig:
     llm: LLMConfig = field(default_factory=LLMConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     knowledge: KnowledgeConfig = field(default_factory=KnowledgeConfig)
+    nlp: NLPConfig = field(default_factory=NLPConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     cloud: CloudLLMConfig = field(default_factory=CloudLLMConfig)
     data_dir: str = "~/minerva"
@@ -128,6 +135,12 @@ class MinervaConfig:
                 sqlite_path=k.get("sqlite_path", config.knowledge.sqlite_path),
                 lancedb_path=k.get("lancedb_path", config.knowledge.lancedb_path),
                 wiki_path=k.get("wiki_path", config.knowledge.wiki_path),
+            )
+        if "nlp" in tier1:
+            n = tier1["nlp"]
+            config.nlp = NLPConfig(
+                spacy_model=n.get("spacy_model", "en_core_web_sm"),
+                spacy_model_zh=n.get("spacy_model_zh", "zh_core_web_sm"),
             )
 
         # Cloud LLM

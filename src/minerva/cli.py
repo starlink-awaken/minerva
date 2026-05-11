@@ -47,6 +47,14 @@ async def _run_research(args):
     )
     search = SearchEngine({"searxng_url": config.search.searxng_url})
 
+    # Load spaCy NLP pipeline for entity extraction
+    nlp = None
+    try:
+        import spacy
+        nlp = spacy.load(config.nlp.spacy_model)
+    except Exception:
+        pass
+
     level = ResearchLevel(args.level) if args.level != "auto" else None
     if level is None:
         router = TriageRouter(llm)
@@ -58,7 +66,7 @@ async def _run_research(args):
         router = TriageRouter(llm)
         triage_obj = await router.classify(args.query)
 
-    pipeline = create_default_pipeline(llm, search, None, None)
+    pipeline = create_default_pipeline(llm, search, nlp, None)
     ctx = await pipeline.run(args.query, level, triage_obj)
 
     if ctx.report:
