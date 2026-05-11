@@ -50,11 +50,19 @@ DIMENSIONS = {
 # --- Keyword boosts ---
 
 BOOST_PATTERNS = [
-    (r"\b(compare|vs|versus|diff|contrast)\b", "depth_required", 1.0),
+    # General boosts
+    (r"\b(compare|vs|versus|diff|contrast|or\s+just)\b", "depth_required", 1.0),
     (r"\b(latest|today|breaking|recent|just\s+announced)\b", "timeliness", 1.0),
     (r"\b(paper|academic|scholar|journal|conference|proceedings)\b", "multi_source", 1.0),
     (r"\b(code|implement|repo|github|source)\b", "domain_complexity", 1.0),
     (r"\b(privacy|confidential|internal|secret|sensitive)\b", "privacy_sensitivity", 1.0),
+    # L2+: deeper analysis
+    (r"\b(analy[sz]e|evolution|architecture|production|investigate|quantiz|deploy|impact of|trend)\b", "depth_required", 1.0),
+    # L3+: debate/counter-argument (or-questions asking "A or B?")
+    (r"\b(debate|argument|counter|against|or\s+just|\?\s*[Aa]nalyze both|provid.*evidence)\b", "depth_required", 1.0),
+    (r"\b(debate|argument|counter|against)\b", "multi_source", 1.0),
+    # L4+: future/synthesis/policy
+    (r"\b(future|predict|forecast|decade|synthesize|history|trajectory|frontier|regulat|govern|stakeholder)\b", "depth_required", 1.0),
 ]
 
 # --- LLM prompt template ---
@@ -152,6 +160,24 @@ class TriageRouter:
     # ============================================================
     # Public API
     # ============================================================
+
+    def classify_rule_based(self, query: str) -> TriageResult:
+        """Classify using only rule-based heuristics (no LLM call)."""
+        scores = self._rule_classify(query)
+        scores = self._apply_boosts(query, scores)
+        total = self._compute_total(scores)
+        level = self._total_to_level(total, scores)
+        warnings = self._generate_warnings(scores, level)
+        cost_est = {"L0": 0.0, "L1": 0.0, "L2": 0.3, "L3": 2.0, "L4": 8.0}.get(level.value, 0.5)
+        return TriageResult(
+            level=level,
+            scores=scores,
+            cost_estimate=cost_est,
+            model_plan={},
+            search_plan={},
+            warnings=warnings,
+            total_score=total,
+        )
 
     async def classify(self, query: str) -> TriageResult:
         """Classify a research query and return routing decision.
