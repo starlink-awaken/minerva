@@ -29,25 +29,25 @@ class TestResearchExecutor:
     @pytest.fixture
     def mock_cost_guard(self):
         from minerva.executor.executor import CostGuard
-        return CostGuard(monthly_budget=50.0)
+        return CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_exec_cg.jsonl")
 
     def test_cost_guard_check_under_budget(self):
         """Test cost guard allows spend within budget."""
         from minerva.executor.executor import CostGuard
-        cg = CostGuard(monthly_budget=50.0)
+        cg = CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_cg1.jsonl")
         assert cg.check(1.0) is True
         assert cg.check(10.0) is True
 
     def test_cost_guard_check_exceeded(self):
         """Test cost guard blocks spend over budget."""
         from minerva.executor.executor import CostGuard
-        cg = CostGuard(monthly_budget=50.0)
+        cg = CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_cg2.jsonl")
         assert cg.check(60.0) is False
 
     def test_cost_guard_record_increments_spend(self):
         """Test recording actual cost increments current spend."""
         from minerva.executor.executor import CostGuard
-        cg = CostGuard(monthly_budget=50.0)
+        cg = CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_cg3.jsonl")
         cg.record(15.0)
         assert cg.current_spend == 15.0
         cg.record(5.0)
@@ -56,7 +56,7 @@ class TestResearchExecutor:
     def test_cost_guard_get_status(self):
         """Test get_status returns correct budget info."""
         from minerva.executor.executor import CostGuard
-        cg = CostGuard(monthly_budget=100.0)
+        cg = CostGuard(monthly_budget=100.0, ledger_path="/tmp/test_cg4.jsonl")
         cg.record(30.0)
         status = cg.get_status()
         assert status["monthly_budget"] == 100.0

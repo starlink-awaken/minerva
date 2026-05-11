@@ -1,0 +1,5 @@
+{"t":0,"agent":"a3a50b1","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"Research"}
+{"t":0,"agent":"a98a0ac","agent_type":"general-purpose","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a98a0ac","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":339281}
+{"t":0,"agent":"a3a50b1","agent_type":"general-purpose","event":"agent_stop","success":true,"duration_ms":428624}

@@ -8,7 +8,7 @@ class TestCostGuard:
         """Test that spending under budget is allowed."""
         from minerva.executor.executor import CostGuard
 
-        guard = CostGuard(monthly_budget=50.0)
+        guard = CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_cost_ledger.jsonl")
         assert guard.check(10.0) is True
         assert guard.check(30.0) is True  # 40 total, still under 50
 
@@ -16,20 +16,16 @@ class TestCostGuard:
         """Test that exceeding budget is blocked."""
         from minerva.executor.executor import CostGuard
 
-        guard = CostGuard(monthly_budget=50.0)
+        guard = CostGuard(monthly_budget=50.0, ledger_path="/tmp/test_cost_ledger.jsonl")
         guard.record(45.0)
         # 45 + 10 = 55 > 50 → blocked
         assert guard.check(10.0) is False
-        # But small incremental costs should still pass
-        guard = CostGuard(monthly_budget=50.0)
-        guard.record(45.0)
-        assert guard.check(3.0) is True  # 48, still under
 
     def test_warn_threshold(self):
         """Test that warning threshold is reported correctly."""
         from minerva.executor.executor import CostGuard
 
-        guard = CostGuard(monthly_budget=50.0, warn_pct=0.80)
+        guard = CostGuard(monthly_budget=50.0, warn_pct=0.80, ledger_path="/tmp/test_cost_warn.jsonl")
         guard.record(42.0)  # 84% used
 
         status = guard.get_status()

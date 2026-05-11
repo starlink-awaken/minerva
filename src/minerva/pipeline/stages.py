@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from pathlib import Path
 
@@ -102,20 +103,24 @@ class MultiSourceSearchStageImpl(IPipelineStage):
 
     async def execute(self, ctx: ResearchContext) -> ResearchContext:
         queries = ctx.sub_questions if ctx.sub_questions else [ctx.query]
-        results = await self.search_engine.search(
-            queries[0],  # Primary query first
-            backends=self.backends,
-            max_results=self.max_results,
-        )
-        # Also search sub-questions if any
-        for q in queries[1:]:
-            sub_results = await self.search_engine.search(
-                q, backends=self.backends, max_results=5
+        # Parallel search across primary + all sub-questions
+        tasks = [
+            self.search_engine.search(
+                q, backends=self.backends,
+                max_results=self.max_results if i == 0 else 5
             )
-            results.extend(sub_results)
+            for i, q in enumerate(queries)
+        ]
+        gathered = await asyncio.gather(*tasks, return_exceptions=True)
+        results: list = []
+        for r in gathered:
+            if isinstance(r, list):
+                results.extend(r)
+            elif isinstance(r, Exception):
+                pass  # Individual query failures are non-fatal
 
         # Deduplicate
-        seen = set()
+        seen: set = set()
         deduped = []
         for r in results:
             if r.url not in seen:

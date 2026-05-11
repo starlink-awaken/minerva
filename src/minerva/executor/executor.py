@@ -86,11 +86,28 @@ class TaskStatus:
 class CostGuard:
     """Enforce monthly budget for cloud API usage."""
 
-    def __init__(self, monthly_budget: float = 50.0, warn_pct: float = 0.80):
+    def __init__(self, monthly_budget: float = 50.0, warn_pct: float = 0.80, ledger_path: str = "~/minerva/state/cost_ledger.jsonl"):
         self.monthly_budget = monthly_budget
         self.warn_threshold = monthly_budget * warn_pct
         self.current_spend = 0.0
-        self.reset_day = 1  # Reset on 1st of each month
+        self.reset_day = 1
+        self.ledger_path = Path(ledger_path).expanduser()
+        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        self._load_ledger()
+
+    def _load_ledger(self):
+        """Load current month's spend from persistent ledger."""
+        if not self.ledger_path.exists():
+            return
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        try:
+            with open(self.ledger_path) as f:
+                for line in f:
+                    entry = json.loads(line)
+                    if entry.get("month") == current_month:
+                        self.current_spend += entry.get("cost", 0.0)
+        except Exception:
+            pass
 
     def check(self, estimated_cost: float) -> bool:
         """Check if estimated cost is within budget. Returns True if allowed."""
@@ -100,8 +117,15 @@ class CostGuard:
         return True
 
     def record(self, actual_cost: float):
-        """Record actual API spend."""
+        """Record actual API spend with persistent ledger."""
         self.current_spend += actual_cost
+        entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "month": datetime.now(timezone.utc).strftime("%Y-%m"),
+            "cost": actual_cost,
+        }
+        with open(self.ledger_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
         if self.current_spend >= self.warn_threshold:
             logger.warning("budget_warning", current=self.current_spend, budget=self.monthly_budget)
 

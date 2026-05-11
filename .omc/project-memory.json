@@ -25,7 +25,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && git log --oneline -10 2>/dev/null && echo \"---\" && git status --short 2>/dev/null && echo \"---\" && python -m pytest tests/ -q 2>/dev/null | tail -5",
+    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -5",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
@@ -108,6 +108,121 @@
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "ISA.md",
+      "accessCount": 1,
+      "lastAccessed": 1778480624234,
+      "type": "file"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "accessCount": 1,
+      "lastAccessed": 1778480624286,
+      "type": "file"
+    },
+    {
+      "path": "pyproject.toml",
+      "accessCount": 1,
+      "lastAccessed": 1778480624341,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/search/engine.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480651526,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/search/backends.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480651577,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/executor/daemon.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480651635,
+      "type": "file"
+    },
+    {
+      "path": "config/minerva.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1778480659196,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/pipeline/engine.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480659249,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/executor/executor.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480659301,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/mcp_server/server.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480669351,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/maintenance/contradiction.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480669402,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/pipeline/stages.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480669453,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/triage/router.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480677278,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/knowledge/temporal.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480677331,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/knowledge/store.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480677383,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/graph/bridge.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480793441,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/maintenance/gap_analyzer.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480801043,
+      "type": "file"
+    },
+    {
+      "path": "docker/docker-compose.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1778480801757,
+      "type": "file"
+    },
+    {
+      "path": "src/minerva/maintenance/staleness.py",
+      "accessCount": 1,
+      "lastAccessed": 1778480801984,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }
