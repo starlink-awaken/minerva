@@ -8,6 +8,30 @@ from bs4 import BeautifulSoup
 from minerva.search.engine import SearchResult
 
 
+# Shared httpx helpers — reduce boilerplate across 7 backends
+
+async def _api_get(url: str, params: dict | None = None, headers: dict | None = None, timeout: int = 15) -> dict | None:
+    """GET JSON from an API. Returns None on any error."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(url, params=params, headers=headers)
+            resp.raise_for_status()
+            return resp.json()
+    except Exception:
+        return None
+
+
+async def _api_post(url: str, json_data: dict, headers: dict | None = None, timeout: int = 20) -> dict | None:
+    """POST JSON to an API. Returns None on any error."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, json=json_data, headers=headers)
+            resp.raise_for_status()
+            return resp.json()
+    except Exception:
+        return None
+
+
 # ============================================================
 # SearXNG Backend
 # ============================================================
@@ -50,19 +74,11 @@ async def search_semantic_scholar(query: str, max_results: int = 10) -> list[Sea
 
     Returns paper titles, abstracts, TLDR summaries, and URLs.
     """
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                "https://api.semanticscholar.org/graph/v1/paper/search",
-                params={
-                    "query": query,
-                    "limit": max_results,
-                    "fields": "title,url,year,abstract,tldr",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception:
+    data = await _api_get(
+        "https://api.semanticscholar.org/graph/v1/paper/search",
+        params={"query": query, "limit": max_results, "fields": "title,url,year,abstract,tldr"},
+    )
+    if not data:
         return []
 
     results = []
@@ -90,19 +106,12 @@ async def search_exa(query: str, api_key: str, max_results: int = 10) -> list[Se
     """
     if not api_key:
         return []
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(
-                "https://api.exa.ai/search",
-                headers={
-                    "x-api-key": api_key,
-                    "Content-Type": "application/json",
-                },
-                json={"query": query, "numResults": max_results, "useAutoprompt": True},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception:
+    data = await _api_post(
+        "https://api.exa.ai/search",
+        json_data={"query": query, "numResults": max_results, "useAutoprompt": True},
+        headers={"x-api-key": api_key, "Content-Type": "application/json"},
+    )
+    if not data:
         return []
 
     results = []
@@ -186,27 +195,15 @@ async def search_metaso(query: str, api_key: str | None = None, max_results: int
     if not api_key:
         return []
 
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(
-                "https://metaso.cn/api/v1/search",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "q": query,
-                    "scope": "webpage",
-                    "size": str(max_results),
-                    "includeSummary": False,
-                    "includeRawContent": False,
-                    "conciseSnippet": False,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception:
+    data = await _api_post(
+        "https://metaso.cn/api/v1/search",
+        json_data={
+            "q": query, "scope": "webpage", "size": str(max_results),
+            "includeSummary": False, "includeRawContent": False, "conciseSnippet": False,
+        },
+        headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json", "Content-Type": "application/json"},
+    )
+    if not data:
         return []
 
     results = []
@@ -232,20 +229,12 @@ async def search_brave(query: str, api_key: str, max_results: int = 10) -> list[
     """
     if not api_key:
         return []
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                "https://api.search.brave.com/res/v1/web/search",
-                headers={
-                    "X-Subscription-Token": api_key,
-                    "Accept": "application/json",
-                    "Accept-Encoding": "gzip",
-                },
-                params={"q": query, "count": min(max_results, 20)},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception:
+    data = await _api_get(
+        "https://api.search.brave.com/res/v1/web/search",
+        params={"q": query, "count": min(max_results, 20)},
+        headers={"X-Subscription-Token": api_key, "Accept": "application/json", "Accept-Encoding": "gzip"},
+    )
+    if not data:
         return []
 
     results = []
