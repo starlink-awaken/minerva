@@ -28,8 +28,20 @@ mcp = FastMCP(
     "Minerva Deep Research",
 )
 
-# Global executor (initialized at startup)
+# Global executor (initialized at startup via init_server()).
+# Design note: singleton pattern is intentional — loading LLM/search/pipeline/KB
+# at MCP connect time would add 5-10s latency to every tool call.
 executor: ResearchExecutor | None = None
+
+
+def _ensure_executor():
+    """Return executor or raise with clear guidance."""
+    if executor is not None:
+        return executor
+    raise RuntimeError(
+        "Minerva MCP server not initialized. "
+        "Start with: minerva-mcp or configure your MCP client to launch minerva."
+    )
 
 
 # ============================================================
@@ -62,7 +74,7 @@ async def research_now(
     )
 
     try:
-        result = await executor.execute_now(task)
+        result = await _ensure_executor().execute_now(task)
     except Exception as exc:
         return json.dumps({"status": "failed", "error": str(exc)})
 
@@ -109,7 +121,7 @@ async def research_schedule(
     )
 
     try:
-        task_id = await executor.schedule(task)
+        task_id = await _ensure_executor().schedule(task)
     except Exception as exc:
         return json.dumps({"status": "failed", "error": str(exc)})
 
@@ -154,7 +166,7 @@ async def research_watch(
     )
 
     try:
-        task_id = await executor.watch(task)
+        task_id = await _ensure_executor().watch(task)
     except Exception as exc:
         return json.dumps({"status": "failed", "error": str(exc)})
 
@@ -190,7 +202,7 @@ async def knowledge_search(
         mode: Search mode (default: hybrid)
     """
     # Delegate to knowledge store
-    results = await executor.kb.search(query, mode)
+    results = await _ensure_executor().kb.search(query, mode)
     return json.dumps({
         "query": query,
         "mode": mode,
@@ -217,7 +229,7 @@ async def knowledge_ingest(
         source_type: Content type (default: auto)
     """
     # Delegate to knowledge store
-    result = await executor.kb.ingest(source, source_type)
+    result = await _ensure_executor().kb.ingest(source, source_type)
     return json.dumps({
         "status": "ingested",
         "source": source,
