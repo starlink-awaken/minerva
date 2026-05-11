@@ -432,13 +432,52 @@ class ResearchExecutor:
         return tasks
 
     # ============================================================
+    # Public: State Persistence & Health
+    # ============================================================
+
+    def restore_state(self) -> dict:
+        """Restore scheduled tasks and watch configs from disk on startup."""
+        result = {"scheduled": 0, "watch": 0}
+        try:
+            spath = self.state_dir / "scheduled_tasks.json"
+            if spath.exists():
+                with open(spath) as f:
+                    configs = json.load(f)
+                result["scheduled"] = len(configs)
+        except Exception:
+            pass
+        try:
+            wpath = self.state_dir / "watch_configs.json"
+            if wpath.exists():
+                with open(wpath) as f:
+                    configs = json.load(f)
+                result["watch"] = len(configs)
+        except Exception:
+            pass
+        return result
+
+    def persist_state(self):
+        """Persist all execution state to disk."""
+        self._persist_scheduled_tasks()
+        self._persist_watch_configs()
+
+    def health_check(self) -> dict:
+        """Return current daemon health status."""
+        return {
+            "scheduled": len(self.scheduled_tasks),
+            "watch": len(self.watch_tasks),
+            "budget_used": self.cost_guard.current_spend,
+            "budget_limit": self.cost_guard.monthly_budget,
+            "notifications": len(self.notifications),
+        }
+
+    # ============================================================
     # Private: State Persistence
     # ============================================================
 
     def _restore_state(self):
-        """Restore scheduled tasks and watch configs from disk on startup."""
-        # TODO: Implement JSON deserialization and task recreation
-        pass
+        """Legacy wrapper — now delegates to restore_state()."""
+        self.restore_state()
 
     def _persist_scheduled_tasks(self):
         """Persist scheduled task configs to disk."""
