@@ -20,7 +20,7 @@ services:
   # --- Tier 2: Enhanced (graceful degradation supported) ---
 
   neo4j:
-    image: neo4j:community
+    image: neo4j:5-community
     container_name: minerva-neo4j
     profiles: ["tier2"]
     ports:
