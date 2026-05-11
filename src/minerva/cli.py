@@ -41,9 +41,9 @@ async def _run_research(args):
     """Execute a research query."""
     from minerva.config import MinervaConfig
     from minerva.llm.client import OpenAICompatibleClient
-    from minerva.triage.router import TriageRouter, ResearchLevel
     from minerva.pipeline.engine import create_default_pipeline
     from minerva.search.engine import SearchEngine
+    from minerva.triage.router import ResearchLevel, TriageRouter
 
     config = MinervaConfig.load()
     llm = OpenAICompatibleClient(
@@ -123,10 +123,10 @@ def main():
 
 def _run_maintenance(args) -> int:
     """Run knowledge base maintenance."""
-    from minerva.maintenance.staleness import StalenessChecker
-    from minerva.maintenance.gap_analyzer import GapAnalyzer, get_improvement_suggestions
+
     from minerva.maintenance.contradiction import detect_contradictions_rule_based
-    from pathlib import Path
+    from minerva.maintenance.gap_analyzer import get_improvement_suggestions
+    from minerva.maintenance.staleness import StalenessChecker
 
     action = args.action
     report_dir = "~/knowledge/reports"

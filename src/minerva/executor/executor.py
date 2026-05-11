@@ -10,22 +10,18 @@ Modes:
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
-import os
-import time
 import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
 import croniter
 import structlog
-import yaml
 
 from minerva.pipeline.engine import Pipeline, ResearchContext
-from minerva.triage.router import ResearchLevel, TriageResult
+from minerva.triage.router import ResearchLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -99,7 +95,7 @@ class CostGuard:
         """Load current month's spend from persistent ledger."""
         if not self.ledger_path.exists():
             return
-        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        current_month = datetime.now(UTC).strftime("%Y-%m")
         try:
             with open(self.ledger_path) as f:
                 for line in f:
@@ -120,8 +116,8 @@ class CostGuard:
         """Record actual API spend with persistent ledger."""
         self.current_spend += actual_cost
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "month": datetime.now(timezone.utc).strftime("%Y-%m"),
+            "timestamp": datetime.now(UTC).isoformat(),
+            "month": datetime.now(UTC).strftime("%Y-%m"),
             "cost": actual_cost,
         }
         with open(self.ledger_path, "a") as f:
@@ -308,9 +304,9 @@ class ResearchExecutor:
         if triage is None:
             triage = await self.router.classify(task.query)  # Need triage for model plan
 
-        started_at = datetime.now(timezone.utc).isoformat()
+        started_at = datetime.now(UTC).isoformat()
         ctx = await self.pipeline.run(task.query, level, triage)
-        completed_at = datetime.now(timezone.utc).isoformat()
+        completed_at = datetime.now(UTC).isoformat()
 
         # 4. Record cost
         self.cost_guard.record(ctx.cost)
@@ -401,7 +397,7 @@ class ResearchExecutor:
                             )
                             result = await self.execute_now(watch_task)
                             self._notify(task, result)
-                        last_checked[source] = datetime.now(timezone.utc)
+                        last_checked[source] = datetime.now(UTC)
                     except Exception as exc:
                         logger.error("watch_check_failed", source=source, error=str(exc))
                 await asyncio.sleep(interval_secs)
@@ -544,7 +540,7 @@ class ResearchExecutor:
             "summary": result.summary,
             "report_path": result.report_path,
             "cost": result.cost,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         self.notifications.append(notification)
         # Persist
