@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -c \\\"\\nfrom notebooklm import NotebookLMClient, AuthTokens\\nimport asyncio\\n\\nasync def test():\\n    auth = await AuthTokens.fro...",
-  "error": "Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 15, in <module>\n    asyncio.run(test())\n    ~~~~~~~~~~~^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py\", line 204, in run\n    return runner.run(main)\n           ~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.4_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py\", line 127, in run\n    return self._lo...",
-  "timestamp": "2026-05-11T09:30:49.736Z",
-  "retry_count": 2
-}

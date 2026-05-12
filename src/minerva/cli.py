@@ -53,16 +53,23 @@ async def _run_research(args):
         base_url=config.llm.base_url,
         model=config.llm.models["agent"],
     )
-    # Enterprise reasoning: DeepSeek V4 Pro for L3/L4 stages
+    # Enterprise reasoning for L3/L4 stages — priority: LongCat (free) > DeepSeek
     cloud_llm = None
-    if os.environ.get("DEEPSEEK_API_KEY"):
+    if os.environ.get("LONGCAT_API_KEY"):
+        cloud_llm = OpenAICompatibleClient(
+            base_url="https://api.longcat.chat/openai",
+            api_key=os.environ["LONGCAT_API_KEY"],
+            model="LongCat-Flash-Thinking",
+            timeout=180,
+        )
+    elif os.environ.get("DEEPSEEK_API_KEY"):
         cloud_llm = OpenAICompatibleClient(
             base_url="https://api.deepseek.com",
             api_key=os.environ["DEEPSEEK_API_KEY"],
             model="deepseek-v4-pro",
             timeout=180,
         )
-    # Free 128K context model for DeepRead + Chinese tasks
+    # Free 128K context model for DeepRead
     glm_llm = None
     if os.environ.get("GLM_API_KEY"):
         glm_llm = OpenAICompatibleClient(

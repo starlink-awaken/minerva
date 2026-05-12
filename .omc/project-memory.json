@@ -25,7 +25,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -3 && git add -A && git commit -m \"feat(minerva): GLM-4.7 Flash (free, 128K ctx) for DeepRead + Zhipu MCP search backend\n\nGLM-4.7 Flash integration:\n- 128K context window for DeepRead stage (replaces 8K truncation)\n- Free tier (permanently free)\n- Chinese-native model — better ZH document analysis\n- Falls back to local qwen3.6:27b when GLM unavailable\n- GLM_API_KEY env var for auth\n\nZhipu web-search-prime MCP backend:\n- MCP client adapter via Python mcp library\n- 8th search backend (DDG/Scholar/arXiv/Metaso/Exa/Brave/Zhipu/SearXNG)\n- ZHIPU_API_KEY env var for auth\n\n137/137 tests pass\" 2>&1",
+    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -3 && git add -A && git commit -m \"fix(deepseek): correct base_url + model name per official API docs\n\n- base_url: https://api.deepseek.com/v1 → https://api.deepseek.com\n- model: deepseek-chat (deprecated 2026/07) → deepseek-v4-pro\n- V4 Pro verified: 194 char response, latency <5s\n\nConfig already had correct model names (deepseek-v4-pro/flash).\" 2>&1",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
