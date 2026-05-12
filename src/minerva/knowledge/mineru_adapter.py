@@ -8,9 +8,9 @@ Install: pip install "mineru[all]" (Python 3.10-3.13)
 
 from __future__ import annotations
 
+import contextlib
 import subprocess
 from pathlib import Path
-
 
 MINERU_VENV = Path(__file__).parent.parent.parent.parent / ".venv-mineru"
 
@@ -85,8 +85,6 @@ def parse_to_text(input_path: str) -> str:
 
     texts = []
     for fpath in result.get("files", []):
-        try:
+        with contextlib.suppress(Exception):
             texts.append(Path(fpath).read_text())
-        except Exception:
-            pass
     return "\n\n".join(texts)

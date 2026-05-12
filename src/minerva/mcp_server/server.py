@@ -13,10 +13,8 @@ Any MCP-compatible agent (Claude Code, Codex, Cursor) can call these.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
 
 from fastmcp import FastMCP
 
@@ -251,7 +249,6 @@ def init_server(executor_instance: ResearchExecutor):
 
 def main():
     """Entry point: minerva-mcp"""
-    import sys
     print("Minerva MCP Server starting...")
     print("Configure your MCP client to connect to this server.")
     print("Example Claude Code config (~/.claude/mcp.json):")

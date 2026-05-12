@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import signal
 import time
 
@@ -17,12 +18,12 @@ async def _run_daemon() -> int:
     """Main daemon event loop with graceful shutdown."""
     # Load dependencies
     from minerva.config import MinervaConfig
-    from minerva.llm.client import OpenAICompatibleClient
-    from minerva.search.engine import SearchEngine
-    from minerva.pipeline.engine import create_default_pipeline
-    from minerva.triage.router import TriageRouter
-    from minerva.executor.executor import ResearchExecutor, CostGuard
+    from minerva.executor.executor import CostGuard, ResearchExecutor
     from minerva.knowledge.store import SQLiteKnowledgeStore
+    from minerva.llm.client import OpenAICompatibleClient
+    from minerva.pipeline.engine import create_default_pipeline
+    from minerva.search.engine import SearchEngine
+    from minerva.triage.router import TriageRouter
 
     config = MinervaConfig.load()
     llm = OpenAICompatibleClient(
@@ -68,10 +69,8 @@ async def _run_daemon() -> int:
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        try:
+        with contextlib.suppress(NotImplementedError):
             loop.add_signal_handler(sig, _signal_handler)
-        except NotImplementedError:
-            pass
 
     # Status heartbeat
     async def _heartbeat():

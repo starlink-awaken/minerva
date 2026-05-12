@@ -403,8 +403,8 @@ class ResearchExecutor:
         """Lazy-init APScheduler with SQLite persistence."""
         if hasattr(self, "_apscheduler"):
             return
-        from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from apscheduler.jobstores.memory import MemoryJobStore
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
         self._apscheduler = AsyncIOScheduler(jobstores={"default": MemoryJobStore()})
         self._apscheduler.start()
 

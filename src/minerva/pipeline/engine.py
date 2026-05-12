@@ -343,16 +343,16 @@ def create_default_pipeline(
     """
 
     from minerva.pipeline.stages import (
-        DecomposeStageImpl,
-        MultiSourceSearchStageImpl,
-        EntityExtractionStageImpl,
-        DeepReadStageImpl,
-        CrossAnalyzeStageImpl,
-        QualityGateStageImpl,
-        OutputStageImpl,
         CounterArgumentStageImpl,
-        MultiModelVotingStageImpl,
+        CrossAnalyzeStageImpl,
+        DecomposeStageImpl,
+        DeepReadStageImpl,
+        EntityExtractionStageImpl,
         ExtendedOutputStageImpl,
+        MultiModelVotingStageImpl,
+        MultiSourceSearchStageImpl,
+        OutputStageImpl,
+        QualityGateStageImpl,
     )
 
     # L3/L4 use cloud client for enterprise reasoning (DeepSeek V4 Pro).

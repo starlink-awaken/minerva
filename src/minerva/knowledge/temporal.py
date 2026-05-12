@@ -21,8 +21,8 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from datetime import date, timedelta
+from enum import Enum
 
 
 class AllenRelation(Enum):

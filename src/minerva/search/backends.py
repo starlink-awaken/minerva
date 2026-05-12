@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 
 from minerva.search.engine import SearchResult
 
-
 # Shared httpx helpers — reduce boilerplate across 7 backends
 
 async def _api_get(url: str, params: dict | None = None, headers: dict | None = None, timeout: int = 15) -> dict | None:

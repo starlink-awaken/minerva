@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import time
 from contextlib import contextmanager
 
 try:
-    from rich.console import Console
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-    from rich.table import Table
-    from rich.panel import Panel
-    from rich.live import Live
-    from rich.layout import Layout
     from rich import box
+    from rich.console import Console
+    from rich.layout import Layout
+    from rich.live import Live
+    from rich.panel import Panel
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+    from rich.table import Table
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -77,7 +76,7 @@ def live_pipeline_display():
             lines.append(f"  [{color}]{icon} {s['name']:<20} {elapsed}[/{color}]")
         return Panel("\n".join(lines) if lines else "[dim]Initializing...[/dim]", border_style="blue")
 
-    with Live(layout, refresh_per_second=4, transient=False) as live:
+    with Live(layout, refresh_per_second=4, transient=False):
         layout["header"].update(header)
         layout["stages"].update(render_stages())
         layout["footer"].update(footer)

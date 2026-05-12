@@ -6,10 +6,10 @@ Designed as a practical alternative to full Semantica Datalog (~10h standalone p
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 
 class RuleSeverity(Enum):
@@ -146,7 +146,7 @@ class RuleEngine:
         if op == "older_than" and isinstance(val, str):
             try:
                 dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
-                days = (datetime.now(timezone.utc) - dt).days
+                days = (datetime.now(UTC) - dt).days
                 return days > cond.value  # True = older than threshold = problem
             except (ValueError, TypeError):
                 return False  # Can't parse date → don't flag

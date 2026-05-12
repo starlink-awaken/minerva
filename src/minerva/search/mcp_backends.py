@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
-import httpx
-import mcp.types as mcp_types
 from mcp.client.session import ClientSession
 from mcp.client.sse import sse_client
 

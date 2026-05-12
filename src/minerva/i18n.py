@@ -6,10 +6,6 @@ Supports: English (en), Chinese (zh), Japanese (ja), Korean (ko).
 
 from __future__ import annotations
 
-import json
-import os
-from pathlib import Path
-
 # --- Language detection ---
 
 _DEFAULT_LANG = "en"
@@ -162,7 +158,8 @@ def get_string(key: str, lang: str = "en", **kwargs) -> str:
 
 def get_report_template(lang: str) -> str:
     """Get research report template in the specified language."""
-    t = lambda k, **kw: get_string(k, lang, **kw)
+    def t(k, **kw):
+        return get_string(k, lang, **kw)
 
     return f"""# {t('report.section.summary')}
 

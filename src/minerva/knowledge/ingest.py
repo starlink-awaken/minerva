@@ -97,7 +97,7 @@ class KnowledgeIngester:
     async def _fetch_url(self, url: str) -> str:
         """Fetch and extract content from a URL."""
         try:
-            from minerva.search.backends import extract_jina, extract_bs4
+            from minerva.search.backends import extract_bs4, extract_jina
             # Try Jina Reader first (better quality)
             content = await extract_jina(url)
             if content and len(content) > 200:

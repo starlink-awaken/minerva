@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from pathlib import Path
 
 from minerva.knowledge.store import Entity
 from minerva.pipeline.engine import IPipelineStage, QualityGateFailure, ResearchContext
-
 
 DECOMPOSE_PROMPT = """Decompose this research question into 3-5 specific sub-questions.
 Each sub-question should cover a distinct aspect. Output one question per line.
@@ -172,10 +172,8 @@ class EntityExtractionStageImpl(IPipelineStage):
                     )
                     entities.append(entity)
                     if self.kb:
-                        try:
+                        with contextlib.suppress(Exception):
                             await self.kb.upsert_entity(entity)
-                        except Exception:
-                            pass
         ctx.entities = [{"id": e.id, "type": e.type, "name": e.name, "confidence": e.confidence} for e in entities]
         return ctx
 
@@ -287,7 +285,7 @@ class QualityGateStageImpl(IPipelineStage):
 
         # Source diversity
         if ctx.search_results:
-            sources = set(r.get("source", "") for r in ctx.search_results)
+            sources = {r.get("source", "") for r in ctx.search_results}
             if len(sources) == 1:
                 score -= 15  # Only one backend
 
@@ -348,7 +346,7 @@ class OutputStageImpl(IPipelineStage):
             if analysis and len(analysis) > 50:
                 contradictions += analysis[:500] + "\n"
         if not contradictions:
-            sources_list = ", ".join(set(r.get("source", "web") for r in ctx.search_results[:5]))
+            sources_list = ", ".join({r.get("source", "web") for r in ctx.search_results[:5]})
             contradictions = (
                 f"No direct contradictions found across {len(ctx.search_results)} sources "
                 f"from {sources_list}. Cross-source consensus suggests reliable findings."
@@ -356,7 +354,7 @@ class OutputStageImpl(IPipelineStage):
 
         # Build gaps
         gaps = ""
-        source_types = set(r.get("source", "web") for r in ctx.search_results)
+        source_types = {r.get("source", "web") for r in ctx.search_results}
         if "scholar" not in source_types and "arxiv" not in source_types:
             gaps += "- Academic sources (Semantic Scholar / arXiv) not represented in results.\n"
         if len(ctx.search_results) < 5:

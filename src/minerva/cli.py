@@ -112,7 +112,7 @@ async def _run_research(args):
 
     print_pipeline_header(args.query, level.value)
 
-    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh, cloud_llm_client=cloud_llm, glm_llm_client=glm_llm)
+    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh, cloud_llm_client=cloud_llm, glm_llm_client=long_context)
     ctx = await pipeline.run(args.query, level, triage_obj)
 
     if ctx.report:
@@ -129,7 +129,7 @@ async def _run_research(args):
             sum(ctx.stage_timings.values()),
         )
         print(ctx.report)
-        print(f"\n[bold]Reports saved:[/bold]")
+        print("\n[bold]Reports saved:[/bold]")
         print(f"  EN: {ctx.report_path}")
         if zh_path:
             print(f"  ZH: {zh_path}")
