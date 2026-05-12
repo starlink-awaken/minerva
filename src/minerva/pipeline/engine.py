@@ -358,8 +358,8 @@ def create_default_pipeline(
     # L3/L4 use cloud client for enterprise reasoning (DeepSeek V4 Pro).
     # Falls back to local qwen3.6:27b if cloud is unavailable.
     reasoner = cloud_llm_client or llm_client
-    # DeepRead uses GLM-4.7 Flash (128K context, free) when available.
-    long_context = glm_llm_client or llm_client
+    # DeepRead uses cloud client (V4 Pro 1M ctx) > GLM (128K free) > local
+    long_context = cloud_llm_client or glm_llm_client or llm_client
 
     stages = {
         ResearchLevel.L0: [

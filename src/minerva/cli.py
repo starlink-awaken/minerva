@@ -53,26 +53,26 @@ async def _run_research(args):
         base_url=config.llm.base_url,
         model=config.llm.models["agent"],
     )
-    # Enterprise reasoning for L3/L4 stages — priority: LongCat (free) > DeepSeek
+    # Enterprise reasoning — V4 Pro (1M ctx, 2.5折) primary, LongCat free backup
     cloud_llm = None
-    if os.environ.get("LONGCAT_API_KEY"):
-        cloud_llm = OpenAICompatibleClient(
-            base_url="https://api.longcat.chat/openai",
-            api_key=os.environ["LONGCAT_API_KEY"],
-            model="LongCat-Flash-Thinking",
-            timeout=180,
-        )
-    elif os.environ.get("DEEPSEEK_API_KEY"):
+    if os.environ.get("DEEPSEEK_API_KEY"):
         cloud_llm = OpenAICompatibleClient(
             base_url="https://api.deepseek.com",
             api_key=os.environ["DEEPSEEK_API_KEY"],
             model="deepseek-v4-pro",
             timeout=180,
         )
-    # Free 128K context model for DeepRead
-    glm_llm = None
-    if os.environ.get("GLM_API_KEY"):
-        glm_llm = OpenAICompatibleClient(
+    elif os.environ.get("LONGCAT_API_KEY"):
+        cloud_llm = OpenAICompatibleClient(
+            base_url="https://api.longcat.chat/openai",
+            api_key=os.environ["LONGCAT_API_KEY"],
+            model="LongCat-Flash-Thinking",
+            timeout=180,
+        )
+    # 1M context for DeepRead — V4 Pro priority, GLM free fallback
+    long_context = cloud_llm  # V4 Pro has 1M ctx
+    if not long_context and os.environ.get("GLM_API_KEY"):
+        long_context = OpenAICompatibleClient(
             base_url="https://open.bigmodel.cn/api/paas/v4",
             api_key=os.environ["GLM_API_KEY"],
             model="glm-4.7-flash",
