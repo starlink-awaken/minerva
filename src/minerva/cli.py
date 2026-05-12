@@ -66,6 +66,7 @@ async def _run_research(args):
         "searxng_url": config.search.searxng_url,
         "metaso_api_key": config.search.metaso_api_key,
         "exa_api_key": config.search.exa_api_key,
+        "zhipu_api_key": os.environ.get("ZHIPU_API_KEY", ""),
     })
 
     # Load spaCy NLP pipelines for entity extraction
