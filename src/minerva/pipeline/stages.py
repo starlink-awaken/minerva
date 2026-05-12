@@ -256,23 +256,55 @@ class CrossAnalyzeStageImpl(IPipelineStage):
 
 
 class QualityGateStageImpl(IPipelineStage):
-    """Verify research quality before output."""
+    """Verify research quality and assign a quality score."""
 
     name = "quality_gate"
 
     async def execute(self, ctx: ResearchContext) -> ResearchContext:
         failures = []
+        score = 100
 
-        # Check: at least some search results
+        # Source count
         if not ctx.search_results:
             failures.append("No search results found")
+            score = 0
+        elif len(ctx.search_results) < 3:
+            failures.append("Insufficient sources (<3)")
+            score -= 30
+        elif len(ctx.search_results) < 5:
+            score -= 10
 
-        # Check: citations present (at least URLs in results)
-        if len(ctx.search_results) < 1:
-            failures.append("Insufficient sources (<1)")
+        # Entity extraction
+        if not ctx.entities:
+            score -= 10  # No entities found — but not a failure
+
+        # Contradiction depth
+        has_analysis = any(
+            c.get("analysis") and len(c.get("analysis", "")) > 50
+            for c in (ctx.contradictions or [])
+        )
+        if not has_analysis and ctx.contradictions:
+            score -= 10
+
+        # Source diversity
+        if ctx.search_results:
+            sources = set(r.get("source", "") for r in ctx.search_results)
+            if len(sources) == 1:
+                score -= 15  # Only one backend
+
+        ctx.relations = ctx.relations or []
+        ctx.relations.append({
+            "quality_score": max(0, score),
+            "quality_gate_checks": {
+                "source_count": len(ctx.search_results),
+                "entity_count": len(ctx.entities),
+                "contradiction_analysis": has_analysis,
+            },
+            "failures": failures,
+        })
 
         if failures:
-            raise QualityGateFailure("; ".join(failures))
+            raise QualityGateFailure(f"[score:{score}] {'; '.join(failures)}")
 
         return ctx
 
@@ -334,14 +366,42 @@ class OutputStageImpl(IPipelineStage):
             citations=citations,
         )
 
-        # Write report
+        # Extract quality score for report header
+        quality_score = "N/A"
+        for r in (ctx.relations or []):
+            if "quality_score" in r:
+                quality_score = str(r["quality_score"])
+                break
+
+        # Write English report
         ts = time.strftime("%Y%m%d-%H%M%S")
         slug = ctx.query[:40].replace(" ", "-").lower()
-        path = self.report_dir / f"{ts}_{slug}.md"
-        path.write_text(report)
+        en_path = self.report_dir / f"{ts}_{slug}_EN.md"
+        en_header = f"> **Quality Score: {quality_score}/100** | Level: {ctx.level.value} | Sources: {len(ctx.search_results)}\n\n"
+        en_path.write_text(en_header + report)
+
+        # Generate Chinese version via LLM
+        zh_report = None
+        if self.llm and len(report) > 100:
+            try:
+                zh_output = await self.llm.generate(
+                    system="You translate research reports from English to Chinese. Preserve markdown formatting, citations, tables, and structure exactly. Only translate the text content.",
+                    prompt=f"Translate this research report to Chinese. Keep all markdown formatting, URLs, and table structures unchanged:\n\n{report[:6000]}",
+                    temperature=0.2,
+                    max_tokens=4096,
+                )
+                zh_path = self.report_dir / f"{ts}_{slug}_ZH.md"
+                zh_header = f"> **质量评分: {quality_score}/100** | 级别: {ctx.level.value} | 来源: {len(ctx.search_results)}\n\n"
+                zh_path.write_text(zh_header + zh_output)
+                zh_report = str(zh_path)
+            except Exception:
+                pass  # Chinese translation is best-effort
 
         ctx.report = report
-        ctx.report_path = str(path)
+        ctx.report_path = str(en_path)
+        if zh_report:
+            ctx.relations = ctx.relations or []
+            ctx.relations.append({"zh_report_path": zh_report})
         return ctx
 
 

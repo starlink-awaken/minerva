@@ -25,7 +25,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -3 && git add -A && git commit -m \"feat(minerva): enterprise reasoning — DeepSeek V4 Pro for L3/L4 stages\n\n- Add cloud_llm_client param to create_default_pipeline()\n- L3: CrossAnalyze + CounterArgument → V4 Pro (was local 27B)\n- L4: CrossAnalyze + CounterArgument + MultiModelVoting → V4 Pro\n- CLI auto-detects DEEPSEEK_API_KEY env var → cloud client\n- Falls back to local qwen3.6:27b when key unavailable\n- L0-L2 stages unchanged (free local inference)\n  - Decompose/Search/EntityExtract/DeepRead/Output all local\n- Cost: ~\\$0.05-0.15 per L3/L4 run\n- DeepSeek API tested: 238 char response in <5s\n\n133/133 tests pass\" 2>&1",
+    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -5",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
