@@ -34,7 +34,7 @@ tier1:
     embedding_dim: 384
 
   nlp:
-    spacy_model: "en_core_web_sm"
+    spacy_model: "en_core_web_lg"
     spacy_model_zh: "zh_core_web_sm"
 
 # Tier 2 — Enhanced (gracefully degrade when missing)

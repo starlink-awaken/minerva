@@ -45,8 +45,10 @@ async def _run_research(args):
     from minerva.pipeline.engine import create_default_pipeline
     from minerva.search.engine import SearchEngine
     from minerva.triage.router import ResearchLevel, TriageRouter
+    from minerva.utils.terminal import print_banner, print_pipeline_header, print_summary_table
 
     config = MinervaConfig.load()
+    print_banner()
     llm = OpenAICompatibleClient(
         base_url=config.llm.base_url,
         model=config.llm.models["agent"],
@@ -91,12 +93,29 @@ async def _run_research(args):
         router = TriageRouter(llm)
         triage_obj = await router.classify(args.query)
 
+    print_pipeline_header(args.query, level.value)
+
     pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh, cloud_llm_client=cloud_llm)
     ctx = await pipeline.run(args.query, level, triage_obj)
 
     if ctx.report:
+        quality_score = "N/A"
+        zh_path = None
+        for r in (ctx.relations or []):
+            if "quality_score" in r:
+                quality_score = str(r["quality_score"])
+            if "zh_report_path" in r:
+                zh_path = r["zh_report_path"]
+        print_summary_table(
+            ctx.stage_timings, quality_score,
+            len(ctx.search_results), len(ctx.entities),
+            sum(ctx.stage_timings.values()),
+        )
         print(ctx.report)
-        print(f"\n---\nReport saved to: {ctx.report_path}")
+        print(f"\n[bold]Reports saved:[/bold]")
+        print(f"  EN: {ctx.report_path}")
+        if zh_path:
+            print(f"  ZH: {zh_path}")
     else:
         print("Research completed but no report generated.")
 

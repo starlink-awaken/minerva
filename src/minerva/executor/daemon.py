@@ -22,7 +22,7 @@ async def _run_daemon() -> int:
     from minerva.pipeline.engine import create_default_pipeline
     from minerva.triage.router import TriageRouter
     from minerva.executor.executor import ResearchExecutor, CostGuard
-    from minerva.knowledge.store import KnowledgeStore
+    from minerva.knowledge.store import SQLiteKnowledgeStore
 
     config = MinervaConfig.load()
     llm = OpenAICompatibleClient(
@@ -44,7 +44,7 @@ async def _run_daemon() -> int:
 
     pipeline = create_default_pipeline(llm, search, nlp, None)
     triage = TriageRouter(llm)
-    kb = KnowledgeStore()
+    kb = SQLiteKnowledgeStore()
     cost_guard = CostGuard(monthly_budget=config.execution.monthly_budget_usd)
 
     executor = ResearchExecutor(
