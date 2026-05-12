@@ -57,9 +57,9 @@ async def _run_research(args):
     cloud_llm = None
     if os.environ.get("DEEPSEEK_API_KEY"):
         cloud_llm = OpenAICompatibleClient(
-            base_url="https://api.deepseek.com/v1",
+            base_url="https://api.deepseek.com",
             api_key=os.environ["DEEPSEEK_API_KEY"],
-            model="deepseek-chat",
+            model="deepseek-v4-pro",
             timeout=180,
         )
     # Free 128K context model for DeepRead + Chinese tasks

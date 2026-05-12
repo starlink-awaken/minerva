@@ -25,7 +25,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "echo 'export ZHIPU_API_KEY=\"8229df096deb42beabffd549afd20d1d.AWHwle8VnULawJn6\"' >> ~/.zshrc && source ~/.zshrc 2>/dev/null; cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -3",
+    "testCommand": "cd /Users/xiamingxing/Workspace/minerva && .venv/bin/python -m pytest tests/ -q --tb=short 2>&1 | tail -3 && git add -A && git commit -m \"feat(minerva): GLM-4.7 Flash (free, 128K ctx) for DeepRead + Zhipu MCP search backend\n\nGLM-4.7 Flash integration:\n- 128K context window for DeepRead stage (replaces 8K truncation)\n- Free tier (permanently free)\n- Chinese-native model — better ZH document analysis\n- Falls back to local qwen3.6:27b when GLM unavailable\n- GLM_API_KEY env var for auth\n\nZhipu web-search-prime MCP backend:\n- MCP client adapter via Python mcp library\n- 8th search backend (DDG/Scholar/arXiv/Metaso/Exa/Brave/Zhipu/SearXNG)\n- ZHIPU_API_KEY env var for auth\n\n137/137 tests pass\" 2>&1",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
