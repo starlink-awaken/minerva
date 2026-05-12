@@ -4,7 +4,7 @@
 def is_available() -> bool:
     """Check if notebooklm-py is installed."""
     try:
-        import notebooklm
+        import notebooklm  # noqa: F401
         return True
     except ImportError:
         return False

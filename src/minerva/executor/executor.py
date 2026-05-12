@@ -408,50 +408,6 @@ class ResearchExecutor:
         self._apscheduler = AsyncIOScheduler(jobstores={"default": MemoryJobStore()})
         self._apscheduler.start()
 
-    async def watch(self, task: ResearchTask) -> str:
-        """Watch topics for new content. Returns task_id.
-
-        Flow:
-        1. Validate sources and check interval
-        2. Create background asyncio task with polling loop
-        3. Persist watch config
-        4. Return task_id
-        """
-        task_id = task.id or str(uuid.uuid4())[:8]
-        task.id = task_id
-
-        interval_secs = {"hourly": 3600, "daily": 86400, "weekly": 604800}.get(
-            task.check_interval, 86400
-        )
-        last_checked: dict[str, datetime] = {}
-
-        async def _watch_loop():
-            while True:
-                for source in task.sources or []:
-                    try:
-                        new_items = await self.source_checker.check(
-                            source, task.topic, last_checked.get(source)
-                        )
-                        for item in new_items:
-                            watch_task = ResearchTask(
-                                id=str(uuid.uuid4())[:8],
-                                query=f"[WATCH: {task.topic}] {item.get('title', item.get('summary', ''))}",
-                                mode=ExecutionMode.IMMEDIATE,
-                                level="L2",
-                                max_cost=task.max_cost,
-                            )
-                            result = await self.execute_now(watch_task)
-                            self._notify(task, result)
-                        last_checked[source] = datetime.now(UTC)
-                    except Exception as exc:
-                        logger.error("watch_check_failed", source=source, error=str(exc))
-                await asyncio.sleep(interval_secs)
-
-        self.watch_tasks[task_id] = asyncio.create_task(_watch_loop())
-        self._persist_watch_configs()
-        logger.info("watch_created", task_id=task_id, topic=task.topic, sources=task.sources)
-        return task_id
-
     async def cancel(self, task_id: str) -> bool:
         """Cancel a scheduled or watch task."""
         cancelled = False
