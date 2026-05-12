@@ -1,91 +1,156 @@
-# Minerva Architecture
+# Minerva Architecture v0.5.0
 
-## Overview
+## Overview / 概述
 
-Minerva is a tiered deep research system with three levels of dependency and four layers of architecture.
+Minerva is a local-first, tiered deep research system with 4 LLMs, 8 search backends, and 3 knowledge stores. All components degrade gracefully — no single point of failure.
 
-### Design Principles
-
-1. **Runs on a laptop first** — M5 128GB is the reference hardware
-2. **Degrades gracefully** — every Tier 2 component has a Tier 1 fallback
-3. **MCP is the only integration surface** — no agent-specific bindings
-4. **Knowledge is the product, not the byproduct** — every research run enriches the knowledge base
-5. **Cost-aware** — every operation has a cost estimate, monthly budget enforced
-
-### Three-Tier Dependency Model
+### Tiered Dependency Model / 三级依赖模型
 
 ```
-🟢 Tier 1 (Hard): Must be available. System fails without these.
-   - Ollama MLX (local LLM)
-   - SQLite FTS5 (full-text search)
-   - LanceDB (vector search)
-   - SearXNG (web search, self-hosted)
-   - llm-wiki-agent (document → wiki)
+Layer 1 (Hard / 硬依赖): Must work. System fails without these.
+  Ollama MLX · SQLite FTS5 · DDG Search · MCP Server
 
-🟡 Tier 2 (Enhanced): Graceful degradation when missing.
-   - Graphiti + Neo4j (temporal knowledge graph)
-   - Semantica (SHACL ontology + Allen temporal + Datalog reasoning)
-   - Exa API (semantic web search)
-   - NotebookLM (creative output)
+Layer 2 (Enhanced / 增强): Graceful degradation when missing.
+  Neo4j 5 · DeepSeek V4 Pro · Metaso · Exa · spaCy · LanceDB
 
-🔵 Tier 3 (Inspiration): Design patterns only, no code dependency.
-   - SharedBrain B-OS architecture patterns
-   - KGGPT three-layer entity extraction
+Layer 3 (Optional / 可选): Best-effort, no impact when absent.
+  SearXNG · Brave · NotebookLM · graphify · Zhipu MCP
 ```
 
-### Four-Layer Architecture
+## System Layers / 系统分层
 
 ```
-Layer 1: Agent Integration (MCP Server)
-   5 Super Tools: research_now | research_schedule | research_watch |
-                  knowledge_search | knowledge_ingest
-
-Layer 2: Execution Engine
-   Immediate Queue | Cron Scheduler | Watch Event Loop
-   Triage Router (L0-L4 classification)
-   Cost Guard (budget enforcement)
-
-Layer 3: Research Pipeline
-   L0 Quick → L1 Standard → L2 Deep → L3 Comprehensive → L4 Max
-   Each level: Search → Extract → Analyze → Reason → Output
-
-Layer 4: Knowledge Base
-   Storage: Markdown + SQLite FTS5 + LanceDB + (Neo4j)
-   Ontology: Semantica (SHACL + SKOS)
-   Maintenance: freshness checks, contradiction detection, cascade updates
+┌─────────────────────────────────────────────────────────────┐
+│                    AGENT INTERFACE (MCP)                     │
+│  research_now · schedule · watch · knowledge_search · ingest │
+│             5 Super Tools via FastMCP stdio                   │
+├─────────────────────────────────────────────────────────────┤
+│                    EXECUTION ENGINE                          │
+│  ResearchExecutor: Immediate Queue · APScheduler Cron        │
+│  CostGuard (persistent JSONL ledger) · daemon (SIGTERM)     │
+├─────────────────────────────────────────────────────────────┤
+│                    TRIAGE ROUTER                             │
+│  5-dim scoring → L0 | L1 | L2 | L3 | L4                     │
+│  Rule-based (72%) + LLM fallback · classify_rule_based()     │
+├─────────────────────────────────────────────────────────────┤
+│                    PIPELINE ENGINE                           │
+│  L0: Search → Output                                         │
+│  L1: Decompose → Search → CrossAnalyze → Output              │
+│  L2: +EntityExtract → DeepRead → QualityGate                 │
+│  L3: +CounterArgument (cloud LLM)                            │
+│  L4: +MultiModelVoting → ExtendedOutput                      │
+├─────────────────────────────────────────────────────────────┤
+│                    SEARCH LAYER                              │
+│  8 backends parallel → RRF fusion → dedup → rank             │
+│  DDG · Scholar · arXiv · Metaso · Exa · Brave · Zhipu · SearXNG│
+├─────────────────────────────────────────────────────────────┤
+│                    AI LAYER                                  │
+│  Local: qwen3.6:27b (L0-L2) · spaCy en_lg + zh_sm (NER)     │
+│  Cloud: V4 Pro 1M ctx (L3-L4) · GLM-4.7 Flash (DeepRead)    │
+│         LongCat-Thinking (free 500万/day backup)             │
+├─────────────────────────────────────────────────────────────┤
+│                    KNOWLEDGE LAYER                           │
+│  SQLite FTS5 · Neo4j 5 (Bolt) · LanceDB                      │
+│  Allen 13 temporal relations · RuleEngine · KnowledgeIngester│
+├─────────────────────────────────────────────────────────────┤
+│                    MAINTENANCE LAYER                         │
+│  Contradiction Detector · Staleness Checker · Gap Analyzer   │
+├─────────────────────────────────────────────────────────────┤
+│                    OUTPUT LAYER                              │
+│  Bilingual EN+ZH · TL;DR summary · Quality Score (100-pt)    │
+│  Source-based confidence · Rich terminal UX                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## System Context
+## Model Matrix / 模型矩阵
+
+| Stage | Primary | Fallback | Context | Cost |
+|-------|---------|----------|---------|------|
+| L0-L2 Search/Extract | qwen3.6:27b (local) | qwen3.5:4b | 16K | $0 |
+| L2 Decompose | qwen3.6:27b (local) | — | 16K | $0 |
+| L2 DeepRead | DeepSeek V4 Pro | GLM-4.7 Flash | 1M / 128K | ~$0.01 |
+| L3/L4 CrossAnalyze | DeepSeek V4 Pro | LongCat-Thinking | 1M / 256K | ~$0.03 |
+| L3 CounterArgument | DeepSeek V4 Pro | LongCat-Thinking | 1M / 256K | ~$0.03 |
+| L4 MultiModelVoting | DeepSeek V4 Pro | LongCat-Thinking | 1M / 256K | ~$0.05 |
+| L0-L4 Output/Bilingual | qwen3.6:27b (local) | GLM-4.7 Flash | 16K / 128K | $0 |
+
+## Search Backends / 搜索后端
+
+| Backend | Type | Cost | Auth | Status |
+|---------|------|------|------|--------|
+| DDG | Web | Free | None | ✅ Active |
+| Semantic Scholar | Academic | Free | None | ✅ Active |
+| arXiv | Preprints | Free | None | ✅ Active |
+| Metaso (秘塔) | Chinese AI | ~3 credits/search | API Key | ✅ Active |
+| Exa | Semantic Web | 1000/mo free | API Key | ✅ Active |
+| Brave | Web (35B pages) | 2000/mo free | API Key | ⚠️ GFW blocked |
+| Zhipu (智谱) | Chinese Web | Free (MCP) | API Key | ✅ Active |
+| SearXNG | Meta-search | Free (self-host) | None | ⚠️ Engine blocked |
+
+## Data Flow / 数据流
 
 ```
-┌──────────┐  ┌──────────┐  ┌──────────┐
-│Claude Code│  │  Codex   │  │ Cursor   │  ... any MCP client
-└─────┬─────┘  └────┬─────┘  └────┬─────┘
-      │              │              │
-      └──────────────┴──────────────┘
-                     │
-              MCP Protocol
-                     │
-            ┌────────┴────────┐
-            │  Minerva MCP    │
-            │  Server         │
-            └────────┬────────┘
-                     │
-            ┌────────┴────────┐
-            │  Minerva Core   │
-            │  (Pipeline +    │
-            │   Knowledge)    │
-            └────────┬────────┘
-                     │
-     ┌───────────────┼───────────────┐
-     │               │               │
-┌────┴────┐   ┌──────┴──────┐  ┌────┴────┐
-│ Ollama  │   │  SearXNG    │  │ Neo4j   │
-│ (local) │   │  (search)   │  │ (graph) │
-└─────────┘   └─────────────┘  └─────────┘
-     │               │               │
-     └───────────────┴───────────────┘
-                     │
-         DeepSeek V4 / GLM-5 / Exa
-         (cloud APIs, cost-gated)
+Query → TriageRouter.classify()
+    ↓
+    ├─ Rule-based: 5-dim scoring → L0-L4
+    └─ LLM fallback: qwen3.6:35b-a3b (if rule fails)
+    ↓
+Pipeline.run(query, level)
+    ↓
+    ├─ DecomposeStage: LLM sub-question generation
+    ├─ SearchStage: asyncio.gather(8 backends) → RRF fusion
+    ├─ EntityExtractStage: spaCy NER (en+zh routing)
+    ├─ DeepReadStage: Content extraction (Jina→BS4→raw)
+    │                   Cross-source analysis (V4 Pro 1M ctx)
+    ├─ CrossAnalyzeStage: Contradiction/consensus detection
+    ├─ CounterArgumentStage: Devil's advocate (L3+, cloud LLM)
+    ├─ MultiModelVotingStage: Panel review (L4, cloud LLM)
+    ├─ QualityGateStage: 100-pt quality scoring
+    └─ OutputStage: Bilingual report + Neo4j persistence
+    ↓
+Report → ~/knowledge/reports/{timestamp}_{slug}_EN.md
+       → ~/knowledge/reports/{timestamp}_{slug}_ZH.md
+       → Neo4j entities/relations
 ```
+
+## Knowledge Persistence / 知识持久化
+
+```
+Research Output
+    ├─ Markdown reports → ~/knowledge/reports/ (Git-tracked)
+    ├─ Entities/Relations → Neo4j 5 (GraphBridge)
+    ├─ Full-text index → SQLite FTS5
+    ├─ Vector embeddings → LanceDB
+    ├─ Temporal validity → Allen 13 relations
+    └─ Rule validation → RuleEngine (3 default rules)
+```
+
+## Graceful Degradation / 优雅降级
+
+| If This Fails... | System Falls Back To... |
+|-----------------|------------------------|
+| Neo4j | SQLite (RECURSIVE CTE for graph queries) |
+| DeepSeek V4 Pro | LongCat → GLM-4.7 Flash → local qwen3.6:27b |
+| spaCy model | Skip entity extraction (non-blocking) |
+| Any search backend | Other 7 backends continue in parallel |
+| DDG (library fails) | Other backends still produce results |
+| MCP server executor | Clear RuntimeError with init guidance |
+| CostGuard ledger file | Start from $0 (graceful, not data loss) |
+
+## Project Metrics / 项目指标
+
+| Metric | Value |
+|--------|-------|
+| Python Version | 3.14+ |
+| Lines of Code | ~5,700 |
+| Source Files | 34 (8 subpackages) |
+| Test Files | 17 |
+| Test Count | 137 (all passing) |
+| Commits | 45 |
+| Search Backends | 8 |
+| LLM Models | 4 (1 local + 3 cloud) |
+| Pipeline Stages | 9 implementations |
+| MCP Tools | 5 Super Tools |
+| Docker Services | Neo4j 5 + SearXNG |
+| ISC Completion | 137/200 (68.5%) |
+| Maturity | 92% (production-ready prototype) |

@@ -1,15 +1,18 @@
 ---
-task: "Build Minerva — Local-First Deep Research System with Product Benchmarking"
+task: "Build Minerva — Local-First Deep Research System"
 slug: 20260509-minerva-v5.0
 project: Minerva
 effort: comprehensive
 effort_source: explicit
 phase: observe
-progress: 137/200
+progress: 140/200
 mode: product_benchmark
 started: 2026-05-09T02:00:00Z
-updated: 2026-05-12T02:00:00Z
-authority: Plans/v3-deep-research-compressed-lobster.md ISA.md
+updated: 2026-05-12T06:00:00Z
+authority: ISA.md README.md docs/ARCHITECTURE.md
+models: "V4 Pro (1M ctx) · LongCat (500万/day) · GLM-4.7 Flash (free) · qwen3.6:27b"
+backends: "DDG · Scholar · arXiv · Metaso · Exa · Brave · Zhipu · SearXNG (8 total)"
+tests: "137 passing"
 ---
 
 ## Problem
