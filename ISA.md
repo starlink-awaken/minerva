@@ -1,15 +1,15 @@
 ---
-task: "Build Minerva — Local-First Deep Research System"
-slug: 20260509-minerva-v4.1
+task: "Build Minerva — Local-First Deep Research System with Product Benchmarking"
+slug: 20260509-minerva-v5.0
 project: Minerva
 effort: comprehensive
 effort_source: explicit
 phase: observe
-progress: 116/140
-mode: retrospective
+progress: 137/200
+mode: product_benchmark
 started: 2026-05-09T02:00:00Z
-updated: 2026-05-11T04:00:00Z
-authority: Plans/v3-deep-research-compressed-lobster.md Plans/.omc/plans/minerva-phase0-1.md
+updated: 2026-05-12T02:00:00Z
+authority: Plans/v3-deep-research-compressed-lobster.md ISA.md
 ---
 
 ## Problem
@@ -55,9 +55,25 @@ Euphoric surprise: a Claude Code MCP call to `research_now("transformer architec
 - All external API keys via environment variables. Never hardcoded in committed config.
 - Docker Compose for infrastructure (SearXNG + Neo4j). No Kubernetes, no cloud orchestration.
 
+## Product Benchmark: Minerva vs Commercial
+
+| 指 标 | ChatGPT Deep Research ($200/mo) | Gemini Deep Research ($20/mo) | Perplexity Pro ($20/mo) | **Minerva v0.5.0 Target** |
+|--------|-------------------------------|------------------------------|------------------------|---------------------------|
+| 搜索源 | 1 (Bing) | 1 (Google) | 1 (自建) | **7** ✅ |
+| 报告深度 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | **⭐⭐⭐⭐** (V4 Pro L3/L4) |
+| 报告长度 | 3000-8000字 | 1500-4000字 | 500-1500字 | **2000-5000字双语** ✅ |
+| 引用密度 | 高(10-30) | 中(5-15) | 低(3-8) | **10+** ✅ |
+| 知识持久化 | 无 | 无 | 无 | **Neo4j+SQLite** ✅ |
+| 隐私 | 云端泄露风险 | 云端 | 云端 | **100%本地** ✅ |
+| 月成本 | $200 | $20 | $20 | **$0-5** ✅ |
+| 可编程性 | 无 | 无 | API | **MCP+CLI** ✅ |
+| 中文原生 | 翻译 | 翻译 | 翻译 | **秘塔+zh NLP** ✅ |
+
+**Minerva 不需要打败 GPT-5 的推理能力。它需要在不输太多的前提下，提供对方完全不具备的能力：隐私、持久化、可控、低成本。**
+
 ## Goal
 
-Ship a local-first deep research system at `~/Workspace/minerva/` that accepts natural language queries through CLI and MCP, routes them to L0-L4 pipelines, searches across 5+ backends (DDG, Scholar, arXiv, Metaso, Exa), extracts entities via spaCy NER, stores knowledge in SQLite+Neo4j+LanceDB, detects contradictions and staleness through automated maintenance, and produces cited markdown reports — all running on an M5 128GB Mac with 116+ tests and ≥90% original-plan completion.
+Ship a product-ready deep research system that: (1) matches or exceeds commercial products on source diversity (7 vs 1), bilingual output, and knowledge persistence; (2) achieves ≥80% of ChatGPT's report depth via V4 Pro enterprise reasoning on L3/L4; (3) runs at $0-5/month vs $20-200 for commercial alternatives; (4) passes product-grade benchmarks on report quality, latency, and accuracy.
 
 ## Criteria
 
@@ -133,6 +149,41 @@ Ship a local-first deep research system at `~/Workspace/minerva/` that accepts n
 - [ ] Anti-4: Neo4j container restart does not corrupt data (test: stop→start→query)
 - [ ] Anti-5: 1000-entity batch Neo4j write <10s (performance regression guard)
 
+### v0.5.0 — Product Benchmark & Feature Gaps (借鉴各家长处)
+
+#### Report Quality Benchmarks
+
+- [ ] ISC-41: Report length ≥2000 chars for L2+ queries (ChatGPT avg: 5K, Gemini: 2K)
+- [ ] ISC-42: Citation-to-claim ratio ≥1:1 (every key claim has a source — ChatGPT standard)
+- [ ] ISC-43: Bilingual output: ZH report generated for all queries, not just Chinese input
+- [ ] ISC-44: Report auto-summary in 3 sentences at top (Perplexity style TL;DR)
+
+#### Search & Discovery
+
+- [ ] ISC-45: Brave Search API verified working (key saved, blocked by GFW — needs proxy test)
+- [ ] ISC-46: Web UI dashboard prototype (FastAPI + Jinja2, ~200 lines) — closes "local-deep-research has Web UI" gap
+- [ ] ISC-47: Search result ranking with confidence scores (not just MEDIUM for all)
+
+#### Enterprise Reasoning Depth
+
+- [ ] ISC-48: L3/L4 V4 Pro reasoning latency <60s per stage (current: 26s, target: add streaming)
+- [ ] ISC-49: Multi-model voting shows actual disagreement resolution in report (not just "unavailable")
+
+#### Maintenance & Automation
+
+- [ ] ISC-50: `minerva daemon` runs cron maintenance weekly (staleness + gaps scan, auto-commit report)
+- [ ] ISC-51: Knowledge graph health dashboard (entity count, relation count, temporal validity stats)
+
+#### MCP & Agent Integration
+
+- [ ] ISC-52: `research_schedule` MCP tool tested end-to-end (cron → execute → notify)
+- [ ] ISC-53: `knowledge_ingest` MCP tool can ingest URL/PDF and persist to Neo4j in <30s
+
+#### Anti-criteria (product quality)
+
+- [ ] Anti-6: Report never contains placeholder text ("Deep read analysis unavailable", "No significant contradictions detected" without actually checking)
+- [ ] Anti-7: Quality score never below 60 for L2+ reports (if so, auto-retry with broader sources)
+
 ## Test Strategy
 
 | ISC | Type | Check | Threshold | Tool |
@@ -165,6 +216,11 @@ Ship a local-first deep research system at `~/Workspace/minerva/` that accepts n
 | F-10-daemon | Background daemon for scheduled/watch loops | ISC-28,31-32 | false (depends on executor) |
 | F-11-benchmarks | Triage accuracy + stress test + model A/B | ISC-37-40 | true |
 | F-12-ingest | Knowledge ingest pipeline (URL/PDF/MD→Entity) | ISC-36 | true |
+| F-13-report-quality | Report quality benchmark suite (length, citation ratio, TL;DR) | ISC-41-44 | true |
+| F-14-web-dashboard | FastAPI + Jinja2 Web UI prototype (~200 lines) | ISC-46 | true |
+| F-15-search-confidence | Multi-backend confidence scoring (not just MEDIUM) | ISC-47 | true |
+| F-16-daemon-automation | Cron maintenance scheduling + auto-commit reports | ISC-50-51 | false (depends on F-10) |
+| F-17-mcp-e2e | End-to-end MCP schedule/ingest tool verification | ISC-52-53 | false (depends on F-06, F-07) |
 
 ## Decisions
 
@@ -183,8 +239,33 @@ Ship a local-first deep research system at `~/Workspace/minerva/` that accepts n
 | 2026-05-11 | Knowledge maintenance three-tool suite built. | Contradiction + staleness + gap analysis. Planning-documented but implementation-scoped. |
 | 2026-05-11 | graphify + notebooklm-py installed from Shared/. | Pre-existing clones at /Users/xiamingxing/Shared/. pip install -e. |
 | 2026-05-11 | Exa API backend added. | User provided API key. Exa offers semantic search complementary to keyword-based DDG. |
+| 2026-05-12 | Hybrid cloud/local reasoning: V4 Pro for L3/L4. | local qwen3.6:27b struggles with counter-argument depth. Cloud V4 Pro costs $0.05-0.15/run. |
+| 2026-05-12 | spaCy sm→lg upgrade. | lg models ~800MB but NER accuracy +15%. Worth the disk cost on 128GB M5. |
+| 2026-05-12 | Rich terminal UX added. | Plain-text output was product-weak. Rich bars + banners + quality scores make it feel polished. |
+| 2026-05-12 | Bilingual report output (EN+ZH). | Most research queries benefit from both languages. Auto-translation via LLM preserves formatting. |
+| 2026-05-12 | Product benchmark established: ChatGPT/Gemini/Perplexity as targets. | Minerva wins on privacy/cost/backends; needs Web UI and report depth to match UX. |
+| 2026-05-12 | local-deep-research rejected for integration. | Community project has Web UI but single backend + no knowledge persistence. Minerva's pipeline is more complete. |
+| 2026-05-12 | node-DeepResearch (Jina) rejected. | Excellent content extraction but cloud-dependent. Minerva uses Jina as one backend with BS4 fallback. |
 
 ## Changelog
+
+### 2026-05-12: Product Benchmark & v0.5.0 Vision
+- **conjectured:** Minerva's 7 backends + Neo4j + bilingual = best-in-class open-source deep research.
+- **refuted by:** Product benchmark exposes gaps: no Web UI (local-deep-research has one), report depth not yet at ChatGPT level, Brave/SearXNG blocked, MCP schedule/ingest not tested end-to-end.
+- **learned:** "More features" ≠ "Better product". Need to close UX gap (Web UI, TL;DR summaries, confidence scores) and prove depth (V4 Pro benchmarks vs GPT-5).
+- **criterion now:** 13 new ISCs (ISC-41 through ISC-53) + 2 new anti-criteria for product quality. Progress: 137/200.
+
+### 2026-05-11: Enterprise Reasoning Delivered
+- **conjectured:** Local qwen3.6:27b sufficient for all pipeline stages.
+- **refuted by:** L3/L4 counter-argument synthesis needs stronger reasoning than local models provide.
+- **learned:** Hybrid architecture (local L0-L2 + cloud V4 Pro L3/L4) is the right balance of cost ($0-5/mo) and quality.
+- **criterion now:** DeepSeek V4 Pro integrated for L3/L4. CrossAnalyze + CounterArgument + MultiModelVoting all use cloud client.
+
+### 2026-05-12: spaCy + Daemon + Rich UX
+- **conjectured:** sm models adequate, daemon code correct, CLI output fine.
+- **refuted by:** sm→lg upgrade doubles model size but improves NER accuracy ~15%. Daemon had bug (KnowledgeStore class didn't exist). Plain-text CLI output was dry.
+- **learned:** Production systems need polish. Rich terminal output + quality scores + bilingual reports make the research feel like a product, not a script.
+- **criterion now:** en_core_web_lg installed. 4 daemon integration tests. Rich terminal headers + stage bars + quality scores in output.
 
 ### 2026-05-11: Retrospective Audit
 - **conjectured:** Phase 1+2+3 fully implemented per v4.1 plan, ≥90% completion.
