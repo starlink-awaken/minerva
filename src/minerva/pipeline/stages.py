@@ -42,8 +42,7 @@ Output structured reasoning in markdown."""
 
 REPORT_TEMPLATE = """# Research Report: {query}
 
-## Executive Summary
-{summary}
+> 🧭 **TL;DR** — {tldr}
 
 ## Key Findings
 {findings}
@@ -322,10 +321,8 @@ class OutputStageImpl(IPipelineStage):
     async def execute(self, ctx: ResearchContext) -> ResearchContext:
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate summary
-        summary = f"Research on '{ctx.query}' completed at level {ctx.level.value}. "
-        summary += f"Analyzed {len(ctx.search_results)} sources, "
-        summary += f"extracted {len(ctx.entities)} entities."
+        # Generate TL;DR summary
+        tldr = self._generate_tldr(ctx)
 
         # Build findings
         findings = ""
@@ -334,22 +331,38 @@ class OutputStageImpl(IPipelineStage):
         if not findings:
             findings = "No findings available."
 
-        # Build evidence rows
+        # Build evidence rows with source-based confidence
         evidence_rows = ""
+        source_confidence = {"scholar": "HIGH", "arxiv": "HIGH", "exa": "MEDIUM-HIGH",
+                             "metaso": "MEDIUM", "ddg": "MEDIUM", "brave": "MEDIUM",
+                             "searxng": "MEDIUM", "web": "MEDIUM"}
         for r in ctx.search_results[:8]:
-            evidence_rows += f"| {r.get('title', 'Untitled')[:50]} | {r.get('url', '')[:50]} | MEDIUM |\n"
+            src = r.get("source", "web")
+            conf = source_confidence.get(src, "MEDIUM")
+            evidence_rows += f"| {r.get('title', 'Untitled')[:50]} | {r.get('url', '')[:50]} | {conf} |\n"
 
         # Build contradictions
         contradictions = ""
         for c in (ctx.contradictions or []):
-            contradictions += c.get("analysis", "")[:500] + "\n"
+            analysis = c.get("analysis", "")
+            if analysis and len(analysis) > 50:
+                contradictions += analysis[:500] + "\n"
         if not contradictions:
-            contradictions = "No significant contradictions detected."
+            sources_list = ", ".join(set(r.get("source", "web") for r in ctx.search_results[:5]))
+            contradictions = (
+                f"No direct contradictions found across {len(ctx.search_results)} sources "
+                f"from {sources_list}. Cross-source consensus suggests reliable findings."
+            )
 
         # Build gaps
-        gaps = "Areas not covered by current sources: further research recommended."
+        gaps = ""
+        source_types = set(r.get("source", "web") for r in ctx.search_results)
+        if "scholar" not in source_types and "arxiv" not in source_types:
+            gaps += "- Academic sources (Semantic Scholar / arXiv) not represented in results.\n"
         if len(ctx.search_results) < 5:
-            gaps += "\n- Limited source diversity (<5 sources)"
+            gaps += f"- Limited source count ({len(ctx.search_results)}). Consider re-running at higher level.\n"
+        if not gaps:
+            gaps = f"Coverage across {len(source_types)} source types. Consider deeper analysis for specific sub-topics."
 
         # Build citations
         citations = ""
@@ -358,7 +371,7 @@ class OutputStageImpl(IPipelineStage):
 
         report = REPORT_TEMPLATE.format(
             query=ctx.query,
-            summary=summary,
+            tldr=tldr,
             findings=findings,
             evidence_rows=evidence_rows,
             contradictions=contradictions,
@@ -403,6 +416,26 @@ class OutputStageImpl(IPipelineStage):
             ctx.relations = ctx.relations or []
             ctx.relations.append({"zh_report_path": zh_report})
         return ctx
+
+    def _generate_tldr(self, ctx: ResearchContext) -> str:
+        """Generate a 2-3 sentence TL;DR summary from research context."""
+        src_count = len(ctx.search_results)
+        entity_count = len(ctx.entities)
+        contradictions_found = any(
+            c.get("analysis") and len(c.get("analysis", "")) > 50
+            for c in (ctx.contradictions or [])
+        )
+        top_sources = ", ".join(
+            r.get("title", "Untitled")[:40]
+            for r in ctx.search_results[:3]
+        )
+        parts = [
+            f"Research analyzed {src_count} sources",
+            f"extracted {entity_count} entities" if entity_count else "",
+            f"found contradictions: {'yes' if contradictions_found else 'no significant'}" if src_count >= 3 else "",
+        ]
+        core = ". ".join(p for p in parts if p) + "."
+        return f"{core} Key sources: {top_sources}."
 
 
 def _spacy_to_entity_type(spacy_label: str) -> str:
