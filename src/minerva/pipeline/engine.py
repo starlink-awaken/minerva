@@ -334,12 +334,12 @@ def create_default_pipeline(
     creative_tool=None,
     nlp_pipeline_zh=None,
     cloud_llm_client=None,
+    glm_llm_client=None,
 ) -> Pipeline:
     """Create pipeline with default stage configurations for each level.
 
-    L0-L2 use local llm_client. L3-L4 use cloud_llm_client (DeepSeek V4 Pro)
-    for enterprise-grade counter-argument and multi-model voting reasoning.
-    Falls back to llm_client if cloud_llm_client is None.
+    L0-L2 use local llm_client. L3-L4 use cloud_llm_client (DeepSeek V4 Pro).
+    DeepRead uses glm_llm_client (GLM-4.7 Flash, 128K context, free) when available.
     """
 
     from minerva.pipeline.stages import (
@@ -358,6 +358,8 @@ def create_default_pipeline(
     # L3/L4 use cloud client for enterprise reasoning (DeepSeek V4 Pro).
     # Falls back to local qwen3.6:27b if cloud is unavailable.
     reasoner = cloud_llm_client or llm_client
+    # DeepRead uses GLM-4.7 Flash (128K context, free) when available.
+    long_context = glm_llm_client or llm_client
 
     stages = {
         ResearchLevel.L0: [
@@ -374,7 +376,7 @@ def create_default_pipeline(
             DecomposeStageImpl(llm_client, max_sub_questions=10),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa", "brave", "zhipu"], max_results=25),
             EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
-            DeepReadStageImpl(search_engine, llm_client, top_n=15),
+            DeepReadStageImpl(search_engine, long_context, top_n=15),
             CrossAnalyzeStageImpl(llm_client),
             QualityGateStageImpl(),
             OutputStageImpl(llm_client=llm_client, knowledge_store=knowledge_store),
@@ -383,7 +385,7 @@ def create_default_pipeline(
             DecomposeStageImpl(llm_client, max_sub_questions=15),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa", "brave", "zhipu"], max_results=35),
             EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
-            DeepReadStageImpl(search_engine, llm_client, top_n=20),
+            DeepReadStageImpl(search_engine, long_context, top_n=20),
             CrossAnalyzeStageImpl(reasoner),
             CounterArgumentStageImpl(reasoner),
             QualityGateStageImpl(),
@@ -393,7 +395,7 @@ def create_default_pipeline(
             DecomposeStageImpl(llm_client, max_sub_questions=15),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "arxiv", "metaso", "exa", "brave", "zhipu"], max_results=50),
             EntityExtractionStageImpl(nlp_pipeline, llm_client, knowledge_store, nlp_zh=nlp_pipeline_zh),
-            DeepReadStageImpl(search_engine, llm_client, top_n=25),
+            DeepReadStageImpl(search_engine, long_context, top_n=25),
             CrossAnalyzeStageImpl(reasoner),
             CounterArgumentStageImpl(reasoner),
             MultiModelVotingStageImpl(reasoner),

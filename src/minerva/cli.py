@@ -59,8 +59,17 @@ async def _run_research(args):
         cloud_llm = OpenAICompatibleClient(
             base_url="https://api.deepseek.com/v1",
             api_key=os.environ["DEEPSEEK_API_KEY"],
-            model="deepseek-chat",  # V4 Pro
+            model="deepseek-chat",
             timeout=180,
+        )
+    # Free 128K context model for DeepRead + Chinese tasks
+    glm_llm = None
+    if os.environ.get("GLM_API_KEY"):
+        glm_llm = OpenAICompatibleClient(
+            base_url="https://open.bigmodel.cn/api/paas/v4",
+            api_key=os.environ["GLM_API_KEY"],
+            model="glm-4.7-flash",
+            timeout=120,
         )
     search = SearchEngine({
         "searxng_url": config.search.searxng_url,
@@ -96,7 +105,7 @@ async def _run_research(args):
 
     print_pipeline_header(args.query, level.value)
 
-    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh, cloud_llm_client=cloud_llm)
+    pipeline = create_default_pipeline(llm, search, nlp, None, nlp_pipeline_zh=nlp_zh, cloud_llm_client=cloud_llm, glm_llm_client=glm_llm)
     ctx = await pipeline.run(args.query, level, triage_obj)
 
     if ctx.report:
