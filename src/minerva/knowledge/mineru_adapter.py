@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 
 MINERU_VENV = Path(__file__).parent.parent.parent.parent / ".venv-mineru"
+MODELSCOPE_CACHE = Path.home() / "Model" / "mineru"
 
 
 def is_available() -> bool:
@@ -52,10 +53,14 @@ def parse_document(
     mineru_bin = MINERU_VENV / "bin" / "mineru"
 
     try:
+        import os
+        env = os.environ.copy()
+        env["MODELSCOPE_CACHE"] = str(MODELSCOPE_CACHE)
         result = subprocess.run(
             [str(mineru_bin), "-p", str(input_p), "-o", str(output_p),
              "-b", backend, "-m", method],
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=600,
+            env=env,
         )
         if result.returncode != 0:
             return {"status": "error", "message": result.stderr[:500]}

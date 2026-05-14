@@ -2,32 +2,74 @@
 
 from __future__ import annotations
 
+import atexit
+
 import httpx
 from bs4 import BeautifulSoup
 
 from minerva.search.engine import SearchResult
 
 # Shared httpx helpers — reduce boilerplate across 7 backends
+# Connection pooling: one AsyncClient per domain for reuse
+import structlog as _structlog
+_log = _structlog.get_logger(__name__)
+
+_client_cache: dict[str, httpx.AsyncClient] = {}
+
+
+@atexit.register
+def _cleanup_clients():
+    """Close all pooled HTTP clients on process exit."""
+    import asyncio
+    for client in _client_cache.values():
+        try:
+            asyncio.get_event_loop().run_until_complete(client.aclose())
+        except Exception:
+            pass
+    _client_cache.clear()
+
+
+def _get_client(domain: str, timeout: int = 30) -> httpx.AsyncClient:
+    """Get or create a pooled httpx client for a domain."""
+    if domain not in _client_cache:
+        _client_cache[domain] = httpx.AsyncClient(
+            timeout=httpx.Timeout(timeout),
+            limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+        )
+    return _client_cache[domain]
+
 
 async def _api_get(url: str, params: dict | None = None, headers: dict | None = None, timeout: int = 15) -> dict | None:
-    """GET JSON from an API. Returns None on any error."""
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+    """GET JSON from an API. Retries once on 429. Returns None on persistent error."""
+    import asyncio
+    from urllib.parse import urlparse
+    domain = urlparse(url).netloc or url
+    for attempt in range(2):
+        try:
+            client = _get_client(domain, timeout)
             resp = await client.get(url, params=params, headers=headers)
+            if resp.status_code == 429 and attempt == 0:
+                await asyncio.sleep(2)  # Back off before retry
+                continue
             resp.raise_for_status()
             return resp.json()
-    except Exception:
-        return None
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            _log.debug("api_get_failed", url=url[:80], error=str(e)[:100])
+            return None
+    return None
 
 
 async def _api_post(url: str, json_data: dict, headers: dict | None = None, timeout: int = 20) -> dict | None:
     """POST JSON to an API. Returns None on any error."""
+    from urllib.parse import urlparse
+    domain = urlparse(url).netloc or url
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(url, json=json_data, headers=headers)
-            resp.raise_for_status()
-            return resp.json()
-    except Exception:
+        client = _get_client(domain, timeout)
+        resp = await client.post(url, json=json_data, headers=headers)
+        resp.raise_for_status()
+        return resp.json()
+    except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+        _log.debug("api_post_failed", url=url[:80], error=str(e)[:100])
         return None
 
 
@@ -50,6 +92,7 @@ async def search_searxng(query: str, base_url: str = "http://localhost:8080", ma
             resp.raise_for_status()
             data = resp.json()
     except Exception:
+        _log.warning("search_backend_empty", source="search_searxng", exc_info=True)
         return []
 
     results = []
@@ -145,6 +188,7 @@ async def search_arxiv(query: str, max_results: int = 10) -> list[SearchResult]:
             resp.raise_for_status()
             raw = resp.text
     except Exception:
+        _log.warning("search_backend_empty", source="search_searxng", exc_info=True)
         return []
 
     results = []
@@ -265,6 +309,7 @@ async def search_duckduckgo(query: str, max_results: int = 10) -> list[SearchRes
             None, lambda: list(DDGS().text(query, max_results=max_results))
         )
     except Exception:
+        _log.warning("search_backend_empty", source="ddg", exc_info=True)
         return []
 
     results = []

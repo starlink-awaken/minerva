@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from collections import deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
@@ -186,7 +187,32 @@ class SourceChecker:
 
     async def check_github_trending(self, topic: str, since: datetime | None) -> list[dict]:
         """Check GitHub trending for repos matching topic."""
-        return []
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    "https://gh-trending-api.herokuapp.com/repositories",
+                    params={"language": "", "since": "daily"},
+                )
+                resp.raise_for_status()
+                repos = resp.json()
+        except Exception:
+            return []
+        items = []
+        topic_lower = topic.lower()
+        for repo in (repos or [])[:20]:
+            desc = (repo.get("description") or "").lower()
+            name = (repo.get("name") or "").lower()
+            lang = (repo.get("language") or "").lower()
+            if topic_lower in desc or topic_lower in name or topic_lower in lang:
+                items.append({
+                    "title": repo.get("name", ""),
+                    "url": repo.get("url", ""),
+                    "summary": (repo.get("description") or "")[:200],
+                    "published": "",
+                    "source": "github_trending",
+                })
+        return items
 
     async def check_rss(self, feed_url: str, topic: str, since: datetime | None) -> list[dict]:
         """Check RSS feed for new items matching topic."""
@@ -262,7 +288,10 @@ class ResearchExecutor:
         # Active tasks
         self.scheduled_tasks: dict[str, asyncio.Task] = {}
         self.watch_tasks: dict[str, asyncio.Task] = {}
-        self.notifications: list[dict] = []
+        self.notifications: deque[dict] = deque(maxlen=1000)
+
+        # Task metadata for persistence (populated by schedule/watch)
+        self._task_meta: dict[str, dict] = {}
 
         # Source checker
         self.source_checker = SourceChecker()
@@ -352,6 +381,9 @@ class ResearchExecutor:
             misfire_grace_time=300,
         )
         self.scheduled_tasks[task_id] = job
+        self._task_meta[task_id] = {
+            "query": task.query, "cron_expr": task.cron_expr, "level": task.level,
+        }
         self._persist_scheduled_tasks()
         next_run = str(job.next_run_time) if job.next_run_time else "now"
         logger.info("schedule_created", task_id=task_id, cron=task.cron_expr, next_run=next_run)
@@ -395,6 +427,9 @@ class ResearchExecutor:
             misfire_grace_time=300,
         )
         self.watch_tasks[task_id] = job
+        self._task_meta[task_id] = {
+            "topic": task.topic, "sources": task.sources, "check_interval": task.check_interval,
+        }
         self._persist_watch_configs()
         logger.info("watch_created", task_id=task_id, topic=task.topic, sources=task.sources)
         return task_id
@@ -464,6 +499,14 @@ class ResearchExecutor:
             if spath.exists():
                 with open(spath) as f:
                     configs = json.load(f)
+                for cfg in configs:
+                    tid = cfg.get("id", "")
+                    if tid:
+                        self._task_meta[tid] = {
+                            "query": cfg.get("query", ""),
+                            "cron_expr": cfg.get("cron", ""),
+                            "level": cfg.get("level", "auto"),
+                        }
                 result["scheduled"] = len(configs)
         except Exception:
             pass
@@ -472,6 +515,14 @@ class ResearchExecutor:
             if wpath.exists():
                 with open(wpath) as f:
                     configs = json.load(f)
+                for cfg in configs:
+                    tid = cfg.get("id", "")
+                    if tid:
+                        self._task_meta[tid] = {
+                            "topic": cfg.get("topic", ""),
+                            "sources": cfg.get("sources", []),
+                            "check_interval": cfg.get("check_interval", "daily"),
+                        }
                 result["watch"] = len(configs)
         except Exception:
             pass
@@ -496,22 +547,33 @@ class ResearchExecutor:
     # Private: State Persistence
     # ============================================================
 
-    def _persist_scheduled_tasks(self):
-        """Persist scheduled task configs to disk."""
+    def _persist_task_dict(self, tasks: dict, filename: str, keys: dict[str, tuple[str, object]]):
+        """Persist task metadata to JSON file using key mapping.
+
+        Always includes the task ID as 'id'. Additional keys are extracted from
+        _task_meta using the provided attr_key → default mapping.
+        """
         configs = []
-        for tid, _ in self.scheduled_tasks.items():
-            # Serialize task config
-            configs.append({"id": tid})  # Simplified
-        with open(self.state_dir / "scheduled_tasks.json", "w") as f:
+        for tid in tasks:
+            meta = self._task_meta.get(tid, {})
+            entry = {"id": tid}
+            for json_key, (attr_key, default) in keys.items():
+                entry[json_key] = meta.get(attr_key, default)
+            configs.append(entry)
+        with open(self.state_dir / filename, "w") as f:
             json.dump(configs, f, indent=2)
 
+    def _persist_scheduled_tasks(self):
+        self._persist_task_dict(self.scheduled_tasks, "scheduled_tasks.json", {
+            "id": ("id", ""), "query": ("query", ""),
+            "cron": ("cron_expr", ""), "level": ("level", "auto"),
+        })
+
     def _persist_watch_configs(self):
-        """Persist watch configs to disk."""
-        configs = []
-        for tid, _ in self.watch_tasks.items():
-            configs.append({"id": tid})  # Simplified
-        with open(self.state_dir / "watch_configs.json", "w") as f:
-            json.dump(configs, f, indent=2)
+        self._persist_task_dict(self.watch_tasks, "watch_configs.json", {
+            "id": ("id", ""), "topic": ("topic", ""),
+            "sources": ("sources", []), "check_interval": ("check_interval", "daily"),
+        })
 
     def _log_execution(self, task: ResearchTask, result: ResearchResult, started: str, completed: str):
         """Append execution record to JSONL log."""
@@ -556,69 +618,3 @@ class ResearchExecutor:
 class BudgetExceededError(Exception):
     """Raised when research cost exceeds remaining budget."""
     pass
-
-
-# ============================================================
-# Pseudocode for key flows
-# ============================================================
-
-"""
-FLOW: execute_now(task)
-========================
-
-1. CLASSIFY:
-   if task.level == "auto":
-       triage = await triage_router.classify(task.query)
-       level = triage.level
-   else:
-       level = task.level
-
-2. COST CHECK:
-   if not cost_guard.check(estimated_cost):
-       raise BudgetExceededError
-
-3. PIPELINE:
-   ctx = await pipeline.run(task.query, level, triage)
-
-4. RECORD:
-   cost_guard.record(ctx.cost)
-   log_execution(task, result)
-
-5. NOTIFY:
-   push to notifications queue (polled via MCP)
-
-6. RETURN:
-   ResearchResult(task_id, summary, report_path, cost, ...)
-
-
-FLOW: schedule(task, cron="0 8 * * *")
-=======================================
-
-1. VALIDATE cron expression
-2. CALCULATE next_run_time = croniter.get_next()
-3. CREATE asyncio task:
-   while True:
-       sleep until next_run_time
-       try:
-           result = execute_now(task)
-       catch → log error
-       next_run_time = croniter.get_next()
-4. PERSIST to state/scheduled_tasks.json
-5. RETURN task_id
-
-
-FLOW: watch(task, topic="MoE architecture", sources=["arxiv"], interval="daily")
-================================================================================
-
-1. VALIDATE sources and interval
-2. CREATE asyncio task:
-   while True:
-       for each source:
-           new_items = check_source(source, topic, since=last_checked[source])
-           for each new_item:
-               execute_now(ResearchTask(query=f"[WATCH] {item.title}", level=L2))
-           last_checked[source] = now()
-       sleep(interval_seconds)
-3. PERSIST to state/watch_configs.json
-4. RETURN task_id
-"""

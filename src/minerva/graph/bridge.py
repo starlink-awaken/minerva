@@ -231,3 +231,44 @@ class GraphBridge:
     @property
     def is_connected(self) -> bool:
         return self._connected
+
+    async def sync_code_graph(self, repo_path: str = ".") -> dict:
+        """Build code knowledge graph via graphify and sync to Neo4j/SQLite.
+
+        Uses graphify Python API to analyze a code repository, then upserts
+        extracted entities and relations into the knowledge graph.
+        Falls back gracefully if graphify is not installed.
+        """
+        try:
+            from minerva.graph.graphify_adapter import build_code_graph
+            graph = build_code_graph(repo_path)
+        except Exception:
+            return {"entities_synced": 0, "relations_synced": 0, "error": "graphify unavailable"}
+
+        entities = graph.get("entities", [])
+        relations = graph.get("relations", [])
+        if not entities:
+            return {"entities_synced": 0, "relations_synced": 0}
+
+        entity_count = 0
+        for e in entities:
+            ge = GraphEntity(
+                id=e.get("id", e.get("name", "")),
+                name=e.get("name", ""),
+                entity_type=e.get("type", "Module"),
+                properties=e.get("properties", {}),
+            )
+            if await self.upsert_entity(ge):
+                entity_count += 1
+
+        relation_count = 0
+        for r in relations:
+            gr = GraphRelation(
+                source_id=r.get("source_id", ""),
+                target_id=r.get("target_id", ""),
+                relation_type=r.get("relation_type", "IMPORTS"),
+            )
+            if await self.upsert_relation(gr):
+                relation_count += 1
+
+        return {"entities_synced": entity_count, "relations_synced": relation_count}

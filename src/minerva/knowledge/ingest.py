@@ -92,6 +92,8 @@ class KnowledgeIngester:
             return Path(source).expanduser().read_text()
         elif source_type == "pdf":
             return self._extract_pdf(source)
+        elif source_type in ("docx", "pptx", "xlsx"):
+            return self._extract_office(source)
         return ""
 
     async def _fetch_url(self, url: str) -> str:
@@ -107,11 +109,22 @@ class KnowledgeIngester:
         except Exception:
             return ""
 
-    def _extract_pdf(self, filepath: str) -> str:
-        """Extract text from a PDF file."""
+    def _extract_pdf(self, filepath: str, use_mineru: bool = False) -> str:
+        """Extract text from a PDF file. Uses pdftotext by default, MinerU opt-in."""
         path = Path(filepath).expanduser()
         if not path.exists():
             return ""
+        # MinerU only when explicitly enabled (opt-in, 2.3GB models)
+        if use_mineru:
+            try:
+                from minerva.knowledge.mineru_adapter import parse_to_text, is_available
+                if is_available():
+                    text = parse_to_text(str(path))
+                    if text and len(text) > 50:
+                        return text
+            except Exception:
+                pass
+        # Default: pdftotext (lightweight, always available)
         try:
             import subprocess
             result = subprocess.run(
@@ -122,9 +135,20 @@ class KnowledgeIngester:
         except Exception:
             return ""
 
+    def _extract_office(self, filepath: str) -> str:
+        """Extract text from Office documents via MinerU."""
+        try:
+            from minerva.knowledge.mineru_adapter import parse_to_text, is_available
+            if is_available():
+                return parse_to_text(str(Path(filepath).expanduser()))
+        except Exception:
+            pass
+        return ""
+
     def _extract_entities(self, text: str) -> list:
         """Extract entities from text using spaCy."""
         from minerva.knowledge.store import Entity
+        from minerva.shared import spacy_to_entity_type
         entities = []
         doc = self.nlp(text[:10000])  # Limit to avoid memory issues
         seen_names = set()
@@ -134,7 +158,7 @@ class KnowledgeIngester:
                     seen_names.add(ent.text)
                     entities.append(Entity(
                         id=f"ingest-{len(entities)}-{ent.label_}",
-                        type=self._spacy_to_entity_type(ent.label_),
+                        type=spacy_to_entity_type(ent.label_),
                         name=ent.text,
                         confidence="MEDIUM",
                         source_ids=[f"ingested:{ent.text}"],
@@ -143,7 +167,7 @@ class KnowledgeIngester:
 
     @staticmethod
     def _spacy_to_entity_type(label: str) -> str:
-        from minerva.pipeline.stages import _spacy_to_entity_type as convert
+        from minerva.shared import spacy_to_entity_type as convert
         return convert(label)
 
     def _save_content(self, source: str, text: str, source_type: str):
@@ -167,4 +191,6 @@ class KnowledgeIngester:
             return "markdown"
         if source.endswith(".pdf"):
             return "pdf"
+        if source.endswith((".docx", ".pptx", ".xlsx")):
+            return source.split(".")[-1]  # docx/pptx/xlsx → MinerU
         return "url"  # Default: try URL

@@ -32,6 +32,28 @@ mcp = FastMCP(
 executor: ResearchExecutor | None = None
 
 
+class DegradedExecutor:
+    """Lightweight executor with only knowledge store access.
+
+    Used when full executor (LLM+pipeline) fails to initialize. Provides
+    knowledge_search and knowledge_ingest; research tools return clear errors.
+    """
+    def __init__(self, kb):
+        self.kb = kb
+
+    async def get_status(self, task_id: str):
+        return None
+
+    async def execute_now(self, task):
+        raise RuntimeError("Research not available in degraded mode. Only knowledge_search and knowledge_ingest work.")
+
+    async def schedule(self, task):
+        raise RuntimeError("Schedule not available in degraded mode.")
+
+    async def watch(self, task):
+        raise RuntimeError("Watch not available in degraded mode.")
+
+
 def _ensure_executor():
     """Return executor or raise with clear guidance."""
     if executor is not None:
@@ -248,67 +270,50 @@ def init_server(executor_instance: ResearchExecutor):
 
 
 def main():
-    """Entry point: minerva-mcp"""
+    """Entry point: minerva-mcp — auto-initializes executor with graceful degradation."""
     print("Minerva MCP Server starting...")
+
+    # Try full executor init first (LLM + pipeline + KB + cost_guard)
+    try:
+        from minerva.config import MinervaConfig
+        from minerva.executor.executor import CostGuard, ResearchExecutor
+        from minerva.knowledge.store import SQLiteKnowledgeStore
+        from minerva.llm.client import OpenAICompatibleClient
+        from minerva.pipeline.engine import create_default_pipeline
+        from minerva.search.engine import SearchEngine
+        from minerva.triage.router import TriageRouter
+
+        config = MinervaConfig.load()
+        llm = OpenAICompatibleClient(base_url=config.llm.base_url, model=config.llm.models["agent"])
+        search = SearchEngine({
+            "searxng_url": config.search.searxng_url,
+            "metaso_api_key": config.search.metaso_api_key,
+            "exa_api_key": config.search.exa_api_key,
+        })
+        pipeline = create_default_pipeline(llm, search, None, None)
+        triage = TriageRouter(llm)
+        kb = SQLiteKnowledgeStore()
+        cost_guard = CostGuard(monthly_budget=config.execution.monthly_budget_usd)
+        init_server(ResearchExecutor(
+            triage_router=triage, pipeline=pipeline, knowledge_store=kb, cost_guard=cost_guard,
+        ))
+        print("  Full executor initialized: research + search + ingest all available.")
+    except Exception as e:
+        print(f"  [WARNING] Full executor init failed: {e}")
+        print("  Trying degraded mode: knowledge_search + knowledge_ingest only...")
+        # Degraded mode: create a minimal executor with just the knowledge store
+        try:
+            from minerva.knowledge.store import SQLiteKnowledgeStore
+            kb = SQLiteKnowledgeStore()
+            init_server(DegradedExecutor(kb))
+            print("  Degraded mode ready: knowledge_search + knowledge_ingest available.")
+        except Exception as e2:
+            print(f"  [ERROR] Degraded init also failed: {e2}")
+            print("  No tools available.")
+
     print("Configure your MCP client to connect to this server.")
-    print("Example Claude Code config (~/.claude/mcp.json):")
-    print(json.dumps({
-        "mcpServers": {
-            "minerva": {
-                "command": "minerva-mcp",
-                "env": {"MINERVA_HOME": "~/minerva"}
-            }
-        }
-    }, indent=2))
     mcp.run()
 
 
 if __name__ == "__main__":
     main()
-
-
-# ============================================================
-# Pseudocode for MCP tool execution flow
-# ============================================================
-
-"""
-FLOW: Agent calls research_now via MCP
-======================================
-
-1. MCP Client (Claude Code/Codex) sends:
-   {
-     "method": "tools/call",
-     "params": {
-       "name": "research_now",
-       "arguments": {
-         "query": "What is the latest in MoE architecture?",
-         "level": "auto",
-         "max_cost": 1.0
-       }
-     }
-   }
-
-2. Minerva MCP Server receives → validates parameters → calls research_now()
-
-3. research_now():
-   a. Create ResearchTask with unique ID
-   b. executor.execute_now(task):
-      - TriageRouter.classify(query) → L2 Deep
-      - CostGuard.check(0.30) → OK
-      - Pipeline.run(query, L2):
-        * DecomposeStage: 10 sub-questions
-        * MultiSourceSearchStage: SearXNG + Exa + Scholar → 25 results
-        * EntityExtractionStage: spaCy NER → 45 entities
-        * DeepReadStage: V4-Flash cross-analysis
-        * CrossAnalyzeStage: R1-70B reasoning
-        * QualityGateStage: all checks pass
-        * OutputStage: report generated → ~/knowledge/reports/
-      - CostGuard.record(0.28)
-   c. Return ResearchResult
-
-4. MCP Server serializes result to JSON and returns to Agent
-
-5. Agent presents to user:
-   "Research complete. Report at ~/knowledge/reports/2026-05-09_moe-architecture.md
-    Summary: MoE architecture has evolved from simple top-k routing to..."
-"""

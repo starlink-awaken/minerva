@@ -34,3 +34,22 @@ Thumbs.db
 # Logs
 *.log
 .venv-mineru/
+
+# Sensitive
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# Logs
+*.log
+/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/neo4j/data/
+docker/neo4j/logs/
