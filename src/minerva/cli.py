@@ -111,7 +111,7 @@ async def _run_research(args):
     # Template support: load template and interpolate {{variables}}
     if args.template and args.target:
         from pathlib import Path as _Path
-        tpl_path = _Path(__file__).parent.parent.parent / "templates" / f"{args.template}.md"
+        tpl_path = _Path(__file__).parent / "templates" / f"{args.template}.md"
         if tpl_path.exists():
             template_content = tpl_path.read_text()
             template_content = template_content.replace("{{target}}", args.target)
