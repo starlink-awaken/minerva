@@ -50,6 +50,12 @@ docker/neo4j/logs/
 # Internal working docs
 ISA.md
 .omc/
+scripts/
 
 # MinerU venv
 .venv-mineru/
+
+# Generated/test output
+reports/
+mineru_test_simple_mineru_output/
+*_mineru_output/
