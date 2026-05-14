@@ -65,8 +65,10 @@ check "Swagger UI" curl -sf "$HOST/docs"
 # 7. Security
 echo ""
 echo "7. Security Verification"
-check "Path traversal blocked" curl -sf -o /dev/null -w "%{http_code}" "$HOST/api/report?path=../../etc/passwd" | grep -q "404"
-check "Oversized input blocked" curl -sf -o /dev/null -w "%{http_code}" "$HOST/api/paradigm?query=$(python3 -c "print('x'*3000)")" | grep -q "414"
+TRAVERSAL_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$HOST/api/report?path=../../etc/passwd" 2>/dev/null)
+if [ "$TRAVERSAL_CODE" = "404" ]; then echo "  ✅ Path traversal blocked (404)"; PASS=$((PASS+1)); else echo "  ⚠️  Path traversal test inconclusive ($TRAVERSAL_CODE)"; FAIL=$((FAIL+1)); fi
+OVERSIZED_RESULT=$(curl -s -o /dev/null -w "%{http_code}" "$HOST/api/paradigm?query=$(python3 -c "print('x'*3000)")" 2>/dev/null)
+if [ "$OVERSIZED_RESULT" = "414" ]; then echo "  ✅ Oversized input blocked (414)"; PASS=$((PASS+1)); else echo "  ⚠️  Oversized input test inconclusive ($OVERSIZED_RESULT)"; FAIL=$((FAIL+1)); fi
 
 echo ""
 echo "  =========================="
