@@ -266,6 +266,19 @@ async def system_progress():
     }
 
 
+# -- Knowledge Graph API ----------------------------------------------
+
+@app.get("/api/graph")
+async def knowledge_graph(limit: int = 50):
+    """Return Neo4j graph data (nodes + edges) for visualization."""
+    try:
+        from minerva.knowledge.graph_api import graph_accessor
+        data = await graph_accessor.get_graph_data(limit=limit)
+        return data
+    except Exception:
+        return {"nodes": [], "edges": [], "error": "Graph query failed"}
+
+
 # -- Report Export (PDF) ---------------------------------------------
 
 @app.get("/api/report/pdf")

@@ -103,6 +103,11 @@
     .form-row{flex-direction:column}
     button{width:100%}
   }
+  .graph-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-top:20px;min-height:400px;display:none}
+  .graph-panel.show{display:block}
+  .graph-panel svg{width:100%;height:450px}
+  .graph-loading{display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:var(--muted)}
+
 </style>
 </head>
 <body>
@@ -113,6 +118,7 @@
       <div><h2>Minerva</h2><span>Deep Research</span></div>
     </div>
     <div class="nav-item active" onclick="location.reload()">&#x1F4DD; Research</div>
+    <div class="nav-item" onclick="showGraph()">&#x1F578; Knowledge Graph</div>
     <div class="nav-item" id="nav-status">
       <span id="s-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block"></span>
       System <span class="badge badge-ok" id="s-text">Online</span>
@@ -162,9 +168,16 @@
         <div style="font-size:0.85rem">Enter a question above. Minerva will search 8 sources, analyze with 4 LLMs, verify claims against sources, and generate a bilingual report with paradigm analysis.</div>
       </div>
     </div>
+
+    <!-- Knowledge Graph Panel -->
+    <div class="graph-panel" id="graph-panel">
+      <div class="legend"><span style="color:#f5a623">⬤ Entity</span><span style="color:#60a5fa">⬤ Concept</span><span style="color:#22c55e">⬤ Source</span><span style="color:#a78bfa">⬤ Organization</span></div>
+      <svg id="graph-svg"></svg>
+    </div>
   </main>
 </div>
 
+<script src="https://d3js.org/d3.v7.min.js"></script>
 <script>
 function qset(v){document.getElementById('q').value=v;document.querySelector('form').requestSubmit()}
 
@@ -288,6 +301,77 @@ function renderResult(d){
 }
 
 function hE(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ── Knowledge Graph Visualization ──
+async function showGraph(){
+  var panel=document.getElementById('graph-panel');
+  var svg=document.getElementById('graph-svg');
+  panel.classList.toggle('show');
+  if(!panel.classList.contains('show')) return;
+  svg.innerHTML='<div class="graph-loading"><div class="spinner"></div>Loading graph...</div>';
+
+  try{
+    var r=await fetch('/api/graph?limit=60');
+    var d=await r.json();
+    if(d.error||!d.nodes.length){
+      svg.innerHTML='<div class="empty-state"><div class="icon">🔌</div><div>No graph data available</div><div style="font-size:0.8rem;color:var(--muted)">Run research first to populate the knowledge graph</div></div>';
+      return;
+    }
+
+    var W=svg.clientWidth||700, H=450;
+    svg.innerHTML='';
+
+    // Color scale
+    var color=d3.scaleOrdinal()
+      .domain(['Entity','Concept','Source','Person','Organization','Topic','Document'])
+      .range(['#f5a623','#60a5fa','#22c55e','#ef4444','#a78bfa','#38bdf8','#fb923c']);
+
+    // Force simulation
+    var sim=d3.forceSimulation(d.nodes)
+      .force('link',d3.forceLink(d.edges).id(function(n){return n.id;}).distance(80))
+      .force('charge',d3.forceManyBody().strength(-200))
+      .force('center',d3.forceCenter(W/2,H/2))
+      .force('collision',d3.forceCollide(20));
+
+    // Edges
+    var link=svg.append('g').selectAll('line').data(d.edges).join('line')
+      .attr('stroke','var(--border)').attr('stroke-width',1).attr('stroke-opacity',0.5);
+
+    // Nodes
+    var node=svg.append('g').selectAll('circle').data(d.nodes).join('circle')
+      .attr('r',function(n){return n.type==='Entity'?8:6;})
+      .attr('fill',function(n){return n.color||color(n.type);})
+      .attr('stroke','var(--bg)').attr('stroke-width',2)
+      .style('cursor','pointer')
+      .call(d3.drag().on('start',function(e,n){if(!e.active)sim.alphaTarget(0.3).restart();n.fx=n.x;n.fy=n.y;})
+        .on('drag',function(e,n){n.fx=e.x;n.fy=e.y;})
+        .on('end',function(e,n){if(!e.active)sim.alphaTarget(0);n.fx=null;n.fy=null;}));
+
+    // Labels
+    var label=svg.append('g').selectAll('text').data(d.nodes).join('text')
+      .text(function(n){return n.name.slice(0,30);})
+      .attr('font-size','9px').attr('fill','var(--muted)').attr('text-anchor','middle')
+      .attr('dy',function(n){return n.type==='Entity'?18:14;});
+
+    // Click to highlight
+    node.on('click',function(e,n){
+      var connected=new Set();connected.add(n.id);
+      d.edges.forEach(function(e){if(e.source.id===n.id||e.target.id===n.id){connected.add(e.source.id);connected.add(e.target.id);}});
+      node.attr('opacity',function(n2){return connected.has(n2.id)?1:0.15;});
+      link.attr('opacity',function(l){return l.source.id===n.id||l.target.id===n.id?1:0.05;});
+      label.attr('opacity',function(n2){return connected.has(n2.id)?1:0.15;});
+    });
+
+    // Tick
+    sim.on('tick',function(){
+      link.attr('x1',function(l){return l.source.x;}).attr('y1',function(l){return l.source.y;})
+        .attr('x2',function(l){return l.target.x;}).attr('y2',function(l){return l.target.y;});
+      node.attr('cx',function(n){return n.x;}).attr('cy',function(n){return n.y;});
+      label.attr('x',function(n){return n.x;}).attr('y',function(n){return n.y;});
+    });
+
+  }catch(e){svg.innerHTML='<div class="error-state">Graph load failed: '+e.message+'</div>';}
+}
 </script>
 </body>
 </html>

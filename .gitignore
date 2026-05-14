@@ -50,7 +50,9 @@ docker/neo4j/logs/
 # Internal working docs
 ISA.md
 .omc/
-scripts/
+
+# Personal scripts (not for distribution)
+scripts/mcp-server-wrapper.sh
 
 # MinerU venv
 .venv-mineru/
