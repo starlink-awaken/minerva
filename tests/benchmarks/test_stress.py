@@ -29,7 +29,10 @@ class TestConcurrency:
     async def test_concurrent_entity_extraction(self):
         """Concurrent entity extraction from multiple texts."""
         import spacy
-        nlp = spacy.load("en_core_web_sm")
+        try:
+            nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            pytest.skip("spaCy model 'en_core_web_sm' not installed")
         texts = [
             "Google and Microsoft are competing in AI.",
             "Apple released new iPhone models.",
