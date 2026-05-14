@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 
 from fastapi import Request
@@ -26,7 +27,7 @@ class InputGuardMiddleware(BaseHTTPMiddleware):
         # Query param value limits
         for key, value in request.query_params.items():
             if len(value) > 2048:
-                return JSONResponse({"error": f"Parameter '{key}' too long (>2KB)"}, status_code=414)
+                return JSONResponse({"error": f"Parameter too long (>2KB)"}, status_code=414)
         return await call_next(request)
 
 
@@ -51,24 +52,28 @@ class RateLimiter:
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    """Simple API key authentication for protected endpoints.
+    """API key authentication for all /api/ endpoints.
 
     Set MINERVA_API_KEY env var to enable. If unset, all requests pass through.
     Clients pass key via X-API-Key header or ?api_key= query param.
     """
 
+    _PUBLIC_PATHS = {"/health", "/", "/docs", "/openapi.json"}
+
     def __init__(self, app, api_key: str | None = None):
         super().__init__(app)
-        import os
         self.api_key = api_key or os.environ.get("MINERVA_API_KEY", "")
 
     async def dispatch(self, request, call_next):
         if not self.api_key:
             return await call_next(request)
-        # Only protect mutation endpoints
-        if request.url.path in ("/api/research", "/api/report/pdf"):
+        # Allow public paths without auth
+        if request.url.path in self._PUBLIC_PATHS:
+            return await call_next(request)
+        # Protect all API endpoints
+        if request.url.path.startswith("/api/"):
             key = request.headers.get("X-API-Key") or request.query_params.get("api_key", "")
-            if key != self.api_key:
+            if not key or key != self.api_key:
                 return JSONResponse({"error": "Invalid or missing API key"}, status_code=401)
         return await call_next(request)
 
@@ -76,13 +81,24 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Apply rate limiting to research endpoints."""
 
+    _TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+
     def __init__(self, app, limiter: RateLimiter | None = None):
         super().__init__(app)
         self.limiter = limiter or RateLimiter()
 
+    def _client_ip(self, request: Request) -> str:
+        """Get real client IP, respecting trusted proxy headers."""
+        client_host = request.client.host if request.client else "unknown"
+        if client_host in self._TRUSTED_PROXIES:
+            forwarded = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "")
+            if forwarded:
+                return forwarded.split(",")[0].strip()
+        return client_host
+
     async def dispatch(self, request: Request, call_next):
         if request.url.path.startswith("/api/research"):
-            key = request.client.host if request.client else "unknown"
+            key = self._client_ip(request)
             if not self.limiter.acquire(key):
                 return JSONResponse(
                     {"error": "Rate limit exceeded. Max 30 requests/min.", "retry_after": 60},

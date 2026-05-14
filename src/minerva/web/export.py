@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import html as _html
 from pathlib import Path
+
+
+def _esc(text: str) -> str:
+    """HTML-escape text to prevent XSS."""
+    return _html.escape(str(text), quote=True)
 
 
 def markdown_to_html(md_path: str) -> str:
@@ -19,13 +25,13 @@ def markdown_to_html(md_path: str) -> str:
     while i < len(lines):
         line = lines[i]
         if line.startswith("### "):
-            out.append(f'<h3>{line[4:]}</h3>')
+            out.append(f'<h3>{_esc(line[4:])}</h3>')
         elif line.startswith("## "):
-            out.append(f'<h2>{line[3:]}</h2>')
+            out.append(f'<h2>{_esc(line[3:])}</h2>')
         elif line.startswith("# "):
-            out.append(f'<h1>{line[2:]}</h1>')
+            out.append(f'<h1>{_esc(line[2:])}</h1>')
         elif line.startswith("> "):
-            out.append(f'<blockquote>{line[2:]}</blockquote>')
+            out.append(f'<blockquote>{_esc(line[2:])}</blockquote>')
         elif line.strip() == "---":
             out.append("<hr>")
         elif line.startswith("|"):
@@ -33,14 +39,14 @@ def markdown_to_html(md_path: str) -> str:
                 out.append('<table>')
                 in_table = True
             cells = [c.strip() for c in line.split("|")[1:-1]]
-            out.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
+            out.append("<tr>" + "".join(f"<td>{_esc(c)}</td>" for c in cells) + "</tr>")
         elif in_table and not line.startswith("|"):
             out.append("</table>")
             in_table = False
         elif line.startswith("- ") or line.startswith("* "):
-            out.append(f'<li>{line[2:]}</li>')
+            out.append(f'<li>{_esc(line[2:])}</li>')
         elif line.strip():
-            out.append(f"<p>{line}</p>")
+            out.append(f"<p>{_esc(line)}</p>")
         else:
             out.append("<br>")
         i += 1
@@ -48,7 +54,7 @@ def markdown_to_html(md_path: str) -> str:
         out.append("</table>")
 
     return PDF_TEMPLATE.format(
-        title=path.stem.replace("_EN", "").replace("_ZH", ""),
+        title=_esc(path.stem.replace("_EN", "").replace("_ZH", "")),
         content="\n".join(out),
     )
 

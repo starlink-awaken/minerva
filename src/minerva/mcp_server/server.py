@@ -24,6 +24,7 @@ from minerva.executor.executor import ExecutionMode, ResearchExecutor, ResearchT
 
 mcp = FastMCP(
     "Minerva Deep Research",
+    mask_error_details=True,
 )
 
 # Global executor (initialized at startup via init_server()).

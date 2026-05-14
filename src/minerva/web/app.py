@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path as _Path
 
 from fastapi import FastAPI, Form
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 _executor_ref: dict = {}  # Holds executor singleton for API use
+
+# Allowed report directories (no path traversal)
+_REPORT_DIRS = [
+    os.path.expanduser("~/knowledge/reports"),
+    os.path.expanduser("~/minerva/reports"),
+]
+
+
+def _safe_report_path(path: str) -> _Path | None:
+    """Resolve and validate a report path is within allowed directories."""
+    if not path:
+        return None
+    fp = _Path(path).expanduser().resolve()
+    allowed = any(str(fp).startswith(os.path.realpath(d)) for d in _REPORT_DIRS)
+    if not allowed or not fp.exists() or not fp.is_file():
+        return None
+    return fp
 
 
 @asynccontextmanager
@@ -46,6 +67,30 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Minerva Deep Research", version="0.10.0", lifespan=lifespan,
               docs_url="/docs", openapi_url="/openapi.json")
 
+# CORS — restrict to localhost
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8765", "http://127.0.0.1:8765"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["X-API-Key"],
+)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Apply security middleware
 from minerva.web.middleware import APIKeyMiddleware, InputGuardMiddleware, RateLimitMiddleware
 app.add_middleware(InputGuardMiddleware)
@@ -57,7 +102,13 @@ app.add_middleware(APIKeyMiddleware)
 
 @app.get("/health")
 async def health():
-    """System health check with component status."""
+    """System health check — minimal info, no internal detail leak."""
+    return {"status": "ok"}
+
+
+@app.get("/health/detailed")
+async def health_detailed():
+    """Detailed health check — protected by API key if configured."""
     checks = {
         "sqlite": _check_sqlite(),
         "llm_local": _check_llm_local(),
@@ -67,6 +118,7 @@ async def health():
 
 
 _health_sqlite_ok: bool | None = None  # Cache health check result
+
 
 def _check_sqlite() -> bool:
     global _health_sqlite_ok
@@ -99,14 +151,16 @@ def _check_llm_local() -> bool:
 @app.get("/api/paradigm")
 async def paradigm_analyze(query: str):
     """Analyze a research question and return the paradigm + suggested operations."""
+    if not query.strip():
+        return JSONResponse({"error": "Query is required"}, status_code=400)
     try:
         from sophia import compile_paradigm_sync
-        prog = compile_paradigm_sync(query)
+        prog = compile_paradigm_sync(query[:500])
         from sophia.learner import ParadigmLearner
         learner = ParadigmLearner()
-        suggestion = learner.suggest_paradigm(query)
+        suggestion = learner.suggest_paradigm(query[:500])
         return {
-            "query": query,
+            "query": query[:500],
             "paradigm": prog.name,
             "operations": [op.value for op in prog.operations],
             "state_count": prog.state_count,
@@ -119,8 +173,8 @@ async def paradigm_analyze(query: str):
                 "top_traces": suggestion.get("top_traces", [])[:3],
             } if suggestion.get("sample_count", 0) > 0 else None,
         }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    except Exception:
+        return JSONResponse({"error": "Analysis failed"}, status_code=500)
 
 
 # -- SSE Progress Stream ----------------------------------------------
@@ -151,7 +205,7 @@ async def research_start(query: str = Form(...), level: str = Form("auto"), max_
     """Start a research task. Returns task_id for polling."""
     executor = _executor_ref.get("executor")
     if executor is None:
-        return JSONResponse({"error": "Executor not initialized"}, status_code=503)
+        return JSONResponse({"error": "Service unavailable"}, status_code=503)
     task_id = str(uuid.uuid4())[:8]
     from minerva.executor.executor import ExecutionMode, ResearchTask
     task = ResearchTask(id=task_id, query=query, mode=ExecutionMode.IMMEDIATE, level=level, max_cost=max_cost)
@@ -160,7 +214,7 @@ async def research_start(query: str = Form(...), level: str = Form("auto"), max_
         # Enrich response with paradigm analysis
         try:
             from sophia import compile_paradigm_sync
-            prog = compile_paradigm_sync(query)
+            prog = compile_paradigm_sync(query[:500])
             paradigm_info = {
                 "paradigm": prog.name,
                 "operations": [op.value for op in prog.operations],
@@ -182,15 +236,15 @@ async def research_start(query: str = Form(...), level: str = Form("auto"), max_
             "stages": {name: round(elapsed, 2) for name, elapsed in stage_timings.items()},
             "total_time": round(sum(stage_timings.values()), 2) if stage_timings else 0,
         }
-    except Exception as e:
-        return JSONResponse({"task_id": task_id, "status": "failed", "error": str(e)[:300]}, status_code=500)
+    except Exception:
+        return JSONResponse({"task_id": task_id, "status": "failed", "error": "Research execution failed"}, status_code=500)
 
 
 @app.get("/api/research/{task_id}")
 async def research_status(task_id: str):
     executor = _executor_ref.get("executor")
     if executor is None:
-        return JSONResponse({"error": "Executor not initialized"}, status_code=503)
+        return JSONResponse({"error": "Service unavailable"}, status_code=503)
     status = await executor.get_status(task_id)
     return {"task_id": task_id, "found": status is not None}
 
@@ -204,10 +258,11 @@ async def system_progress():
         "llm_local": _check_llm_local(),
         "executor": executor is not None,
     }
+    import time
     return {
         "status": "ok" if all(checks.values()) else "degraded",
         "checks": checks,
-        "timestamp": __import__("time").strftime("%H:%M:%S"),
+        "timestamp": time.strftime("%H:%M:%S"),
     }
 
 
@@ -216,16 +271,15 @@ async def system_progress():
 @app.get("/api/report/pdf")
 async def export_pdf(path: str = ""):
     """Export a research report as print-ready HTML."""
-    from pathlib import Path as _Path
-    fp = _Path(path).expanduser()
-    if not fp.exists():
+    fp = _safe_report_path(path)
+    if fp is None:
         return JSONResponse({"error": "Report not found"}, status_code=404)
     try:
         from minerva.web.export import markdown_to_html
         html = markdown_to_html(str(fp))
         return HTMLResponse(html)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    except Exception:
+        return JSONResponse({"error": "Export failed"}, status_code=500)
 
 
 # -- Report Rendering -------------------------------------------------
@@ -233,16 +287,15 @@ async def export_pdf(path: str = ""):
 @app.get("/api/report")
 async def view_report(path: str = ""):
     """Render a research report as styled HTML from markdown."""
-    from pathlib import Path as _Path
-    fp = _Path(path).expanduser()
-    if not fp.exists():
-        return JSONResponse({"error": "Report not found", "path": str(fp)}, status_code=404)
+    fp = _safe_report_path(path)
+    if fp is None:
+        return JSONResponse({"error": "Report not found"}, status_code=404)
     try:
         md = fp.read_text()
         html = _md_to_html(md)
         return HTMLResponse(REPORT_WRAPPER.format(title=fp.name, content=html))
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    except Exception:
+        return JSONResponse({"error": "Render failed"}, status_code=500)
 
 
 def _md_to_html(md: str) -> str:
@@ -287,7 +340,7 @@ def _md_to_html(md: str) -> str:
         # Unordered list
         elif line.startswith('- ') or line.startswith('* '):
             out.append(f'<li>{_fmt_inline(line[2:])}</li>')
-        # Code block (inline only for now)
+        # Code block
         elif line.startswith('```'):
             out.append('<pre><code>')
             i += 1
@@ -351,7 +404,8 @@ em{{color:var(--muted)}}
 
 # -- Dashboard ---------------------------------------------------------
 
-_DASHBOARD_PATH = __import__("pathlib").Path(__file__).parent / "dashboard.html"
+_DASHBOARD_PATH = _Path(__file__).parent / "dashboard.html"
+
 
 def _load_dashboard() -> str:
     try:
@@ -363,5 +417,3 @@ def _load_dashboard() -> str:
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return HTMLResponse(_load_dashboard())
-
-

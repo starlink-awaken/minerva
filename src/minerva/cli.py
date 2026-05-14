@@ -257,7 +257,7 @@ def main():
         import uvicorn
         from minerva.web.app import app
         print("Minerva Web → http://localhost:8765")
-        uvicorn.run(app, host="0.0.0.0", port=8765, log_level="info")
+        uvicorn.run(app, host="127.0.0.1", port=8765, log_level=os.environ.get("MINERVA_LOG_LEVEL", "info"))
         return 0
     elif args.command == "daemon":
         from minerva.executor.daemon import main as daemon_main
