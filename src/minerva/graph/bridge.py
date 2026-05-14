@@ -10,7 +10,7 @@ class GraphConfig:
     """Configuration for Neo4j/Graphiti connection."""
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
-    neo4j_password: str = "password"
+    neo4j_password: str = ""  # Set via MINERVA_NEO4J_PASSWORD env var or config
     enabled: bool = True
 
 

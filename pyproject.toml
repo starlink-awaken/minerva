@@ -50,6 +50,12 @@ minerva = "minerva.cli:main"
 minerva-mcp = "minerva.mcp_server.server:main"
 minerva-daemon = "minerva.executor.daemon:main"
 
+[project.urls]
+Homepage = "https://github.com/starlink-awaken/minerva"
+Repository = "https://github.com/starlink-awaken/minerva.git"
+Documentation = "https://github.com/starlink-awaken/minerva#readme"
+Issues = "https://github.com/starlink-awaken/minerva/issues"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

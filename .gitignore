@@ -28,28 +28,28 @@ Thumbs.db
 
 # Secrets
 .env
-*.key
-*.pem
-
-# Logs
-*.log
-.venv-mineru/
-
-# Sensitive
 .env.local
 .env.*.local
-*.pem
 *.key
+*.pem
 credentials.json
 
 # Logs
 *.log
 /logs/
 
-# OS
-.DS_Store
-Thumbs.db
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
 
-# Docker
+# Docker data
 docker/neo4j/data/
 docker/neo4j/logs/
+
+# Internal working docs
+ISA.md
+.omc/
+
+# MinerU venv
+.venv-mineru/
