@@ -32,6 +32,8 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "readability-lxml>=0.8",
     "apscheduler>=3.10",
+    "ujson>=5.12.1",
+    "urllib3>=2.7.0",
 ]
 
 [project.optional-dependencies]

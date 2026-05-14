@@ -74,6 +74,9 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/api/"):
             key = request.headers.get("X-API-Key") or request.query_params.get("api_key", "")
             if not key or key != self.api_key:
+                from minerva.shared.audit import audit
+                ip = request.client.host if request.client else "unknown"
+                audit.auth_failure(path=request.url.path, ip=ip, reason="invalid_key")
                 return JSONResponse({"error": "Invalid or missing API key"}, status_code=401)
         return await call_next(request)
 
@@ -100,6 +103,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/api/research"):
             key = self._client_ip(request)
             if not self.limiter.acquire(key):
+                from minerva.shared.audit import audit
+                audit.rate_limit_hit(ip=key, path=request.url.path)
                 return JSONResponse(
                     {"error": "Rate limit exceeded. Max 30 requests/min.", "retry_after": 60},
                     status_code=429,
