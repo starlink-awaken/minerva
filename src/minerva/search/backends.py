@@ -15,6 +15,8 @@ import structlog as _structlog
 _log = _structlog.get_logger(__name__)
 
 _client_cache: dict[str, httpx.AsyncClient] = {}
+_domain_last_call: dict[str, float] = {}  # Rate limiting: domain → last call timestamp
+_MIN_CALL_INTERVAL = 2.0  # Minimum seconds between calls to same domain
 
 
 @atexit.register
@@ -40,22 +42,44 @@ def _get_client(domain: str, timeout: int = 30) -> httpx.AsyncClient:
 
 
 async def _api_get(url: str, params: dict | None = None, headers: dict | None = None, timeout: int = 15) -> dict | None:
-    """GET JSON from an API. Retries once on 429. Returns None on persistent error."""
-    import asyncio
+    """GET JSON from an API. Exponential backoff on 429. Returns None on persistent error."""
+    import asyncio, time
     from urllib.parse import urlparse
     domain = urlparse(url).netloc or url
-    for attempt in range(2):
+
+    # Rate limit: enforce minimum interval between calls to same domain
+    now = time.monotonic()
+    last = _domain_last_call.get(domain, 0)
+    gap = _MIN_CALL_INTERVAL - (now - last)
+    if gap > 0:
+        await asyncio.sleep(gap)
+
+    for attempt in range(3):
         try:
             client = _get_client(domain, timeout)
             resp = await client.get(url, params=params, headers=headers)
-            if resp.status_code == 429 and attempt == 0:
-                await asyncio.sleep(2)  # Back off before retry
-                continue
+            if resp.status_code == 429:
+                if attempt < 2:
+                    # Respect Retry-After header, fall back to exponential backoff
+                    retry_after = resp.headers.get("Retry-After", "")
+                    try:
+                        wait = int(retry_after)
+                    except ValueError:
+                        wait = 2 ** (attempt + 3)  # 8s → 16s → 32s
+                    _log.debug("rate_limited", url=url[:60], attempt=attempt, wait_s=wait)
+                    await asyncio.sleep(wait)
+                    continue
+                # Last attempt also failed — log and return
+                _log.warning("rate_limited_persistent", url=url[:60])
+                return None
             resp.raise_for_status()
+            _domain_last_call[domain] = time.monotonic()
             return resp.json()
         except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
             _log.debug("api_get_failed", url=url[:80], error=str(e)[:100])
+            _domain_last_call[domain] = time.monotonic()
             return None
+    _domain_last_call[domain] = time.monotonic()
     return None
 
 
