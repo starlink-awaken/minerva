@@ -5,7 +5,7 @@ FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="Minerva Deep Research"
 LABEL org.opencontainers.image.description="Local-first deep research system"
-LABEL org.opencontainers.image.version="0.10.0"
+LABEL org.opencontainers.image.version="0.11.0"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates \

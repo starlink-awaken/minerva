@@ -2,7 +2,7 @@
 
 > *Minerva: Roman goddess of wisdom, strategic warfare, and the arts.*
 >
-> A local-first, multi-tier deep research system that searches 8 sources, analyzes with 4 LLMs, verifies claims against sources, persists knowledge in Neo4j + SQLite + LanceDB, and produces bilingual reports with quality scoring. Powered by **Sophia** symbolic paradigm engine. Runs on Apple Silicon with $0/month base cost. **v0.10.0**
+> A local-first, multi-tier deep research system that searches 8 sources, analyzes with 4 LLMs, verifies claims against sources, persists knowledge in Neo4j + SQLite + LanceDB, and produces bilingual reports with quality scoring. Powered by **Sophia** symbolic paradigm engine. Runs on Apple Silicon with $0/month base cost. **v0.11.0**
 
 [English](#english) | [中文](#chinese)
 
@@ -14,7 +14,7 @@
 
 Minerva is a local deep research engine. You ask a question, it searches across 8 backends in parallel, extracts entities, analyzes contradictions, scores quality, and generates a bilingual (EN+ZH) report — all running on your machine with zero cloud dependency for basic tiers.
 
-**New in v0.10.0:** Web API with SSE streaming, PDF report export, Sophia paradigm engine integration, circuit breaker for LLM resilience, RAG pipeline with LanceDB+SQLite hybrid retrieval, API key authentication, rate limiting, 3 research templates, CI/CD pipeline, and enterprise governance docs.
+**New in v0.11.0:** Web API with SSE streaming, PDF report export, Sophia paradigm engine integration, circuit breaker for LLM resilience, RAG pipeline with LanceDB+SQLite hybrid retrieval, API key authentication, rate limiting, 3 research templates, CI/CD pipeline, and enterprise governance docs.
 
 ### Quick Start
 
@@ -203,7 +203,7 @@ export ZHIPU_API_KEY="..."               # Zhipu search
 
 Minerva 是一个本地深度研究引擎。你提出问题，它并行搜索 8 个信息源，通过 spaCy 提取实体，分析矛盾，评分质量，生成中英双语报告——基础级别完全在本地运行，零云依赖。
 
-**v0.10.0 新特性：** Web API（SSE 流式推送）、PDF 报告导出、Sophia 符号范式引擎集成、LLM 断路器、RAG 管道（LanceDB + SQLite 混合检索）、API 密钥认证、速率限制、3 个研究模板、CI/CD 管道、企业级治理文档。
+**v0.11.0 新特性：** Web API（SSE 流式推送）、PDF 报告导出、Sophia 符号范式引擎集成、LLM 断路器、RAG 管道（LanceDB + SQLite 混合检索）、API 密钥认证、速率限制、3 个研究模板、CI/CD 管道、企业级治理文档。
 
 ### 快速开始
 

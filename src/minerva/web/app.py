@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     _executor_ref.clear()
 
 
-app = FastAPI(title="Minerva Deep Research", version="0.10.0", lifespan=lifespan,
+app = FastAPI(title="Minerva Deep Research", version="0.11.0", lifespan=lifespan,
               docs_url="/docs", openapi_url="/openapi.json")
 
 # CORS — restrict to localhost
