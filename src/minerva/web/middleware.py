@@ -27,7 +27,7 @@ class InputGuardMiddleware(BaseHTTPMiddleware):
         # Query param value limits
         for key, value in request.query_params.items():
             if len(value) > 2048:
-                return JSONResponse({"error": f"Parameter too long (>2KB)"}, status_code=414)
+                return JSONResponse({"error": "Parameter too long (>2KB)"}, status_code=414)
         return await call_next(request)
 
 

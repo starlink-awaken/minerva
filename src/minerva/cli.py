@@ -236,8 +236,6 @@ def _run_check() -> int:
     """Health check — verify all services and dependencies."""
     import httpx
     import os
-    import structlog
-    logger = structlog.get_logger("cli.check")
 
     print("\n  ⚡ Minerva Health Check\n")
     passed = 0
