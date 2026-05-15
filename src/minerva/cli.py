@@ -232,6 +232,94 @@ def _run_init() -> int:
     return 0
 
 
+def _run_check() -> int:
+    """Health check — verify all services and dependencies."""
+    import httpx
+    import os
+    import structlog
+    logger = structlog.get_logger("cli.check")
+
+    print("\n  ⚡ Minerva Health Check\n")
+    passed = 0
+    failed = 0
+
+    # 1. Ollama
+    try:
+        r = httpx.get("http://localhost:11434/api/tags", timeout=5)
+        if r.status_code == 200:
+            models = [m["name"] for m in r.json().get("models", [])]
+            print(f"  ✅ Ollama running ({len(models)} models: {', '.join(models[:3])}...)")
+            passed += 1
+        else:
+            raise Exception("not ok")
+    except Exception:
+        print("  ❌ Ollama not reachable (brew install ollama && ollama serve)")
+        failed += 1
+
+    # 2. SearXNG
+    try:
+        r = httpx.get("http://localhost:8080/health", timeout=5)
+        if r.status_code == 200:
+            print("  ✅ SearXNG running (localhost:8080)")
+            passed += 1
+        else:
+            raise Exception("not ok")
+    except Exception:
+        print("  ⚠️  SearXNG not running (docker compose up -d searxng)")
+        failed += 1
+
+    # 3. Neo4j
+    try:
+        password = os.environ.get("NEO4J_PASSWORD", "changeme")
+        r = httpx.get("http://localhost:7474", auth=("neo4j", password), timeout=5)
+        if r.status_code == 200:
+            print("  ✅ Neo4j running (localhost:7474)")
+            passed += 1
+        else:
+            raise Exception("not ok")
+    except Exception:
+        print("  ⚠️  Neo4j not running (docker compose --profile full up -d neo4j)")
+        failed += 1
+
+    # 4. Configuration
+    keys_found = sum(1 for k in ["DEEPSEEK_API_KEY", "LONGCAT_API_KEY", "GLM_API_KEY", "EXA_API_KEY"] if os.environ.get(k))
+    if keys_found > 0:
+        print(f"  ✅ API keys configured ({keys_found}/4)")
+        passed += 1
+    else:
+        print("  ⚠️  No cloud API keys set (L0-L1 work locally, L2+ need keys)")
+        failed += 1
+
+    # 5. Python deps
+    import importlib
+    deps = {"spacy": "spaCy", "structlog": "structlog", "lancedb": "LanceDB", "httpx": "httpx"}
+    for mod, name in deps.items():
+        try:
+            importlib.import_module(mod)
+        except ImportError:
+            print(f"  ❌ {name} not installed (pip install {mod})")
+            failed += 1
+
+    # 6. Storage
+    from pathlib import Path
+    db_path = Path.home() / "knowledge" / "minerva.db"
+    if db_path.exists():
+        print(f"  ✅ SQLite database ({db_path})")
+        passed += 1
+    else:
+        print("  ℹ️  SQLite DB not yet created (auto-created on first use)")
+        passed += 1
+
+    total = passed + failed
+    print(f"\n  Results: {passed}/{total} checks passed")
+    if failed == 0:
+        print("  🎉 All systems ready!")
+    else:
+        print(f"  {failed} issue(s) found. Run 'minerva init' for setup help.")
+    print()
+    return 0 if failed == 0 else 1
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -248,11 +336,7 @@ def main():
         from minerva.mcp_server.server import main as mcp_main
         return mcp_main()
     elif args.command == "check":
-        print("Minerva health check:")
-        print("  [TODO] SearXNG: check localhost:8080")
-        print("  [TODO] Ollama: check localhost:11434")
-        print("  [TODO] Neo4j: Phase 2")
-        return 0
+        return _run_check()
     elif args.command == "web":
         import uvicorn
         from minerva.web.app import app
