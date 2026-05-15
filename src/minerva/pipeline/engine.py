@@ -173,6 +173,7 @@ def create_default_pipeline(
             DecomposeStageImpl(llm_client, max_sub_questions=5),
             MultiSourceSearchStageImpl(search_engine, backends=["ddg", "scholar", "metaso", "exa", "brave", "zhipu"], max_results=10),
             CrossAnalyzeStageImpl(llm_client),
+            QualityGateStageImpl(),
             OutputStageImpl(llm_client=llm_client, knowledge_store=knowledge_store),
         ],
         ResearchLevel.L2: [

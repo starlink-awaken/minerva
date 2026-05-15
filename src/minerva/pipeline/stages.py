@@ -303,8 +303,8 @@ class DeepReadStageImpl(IPipelineStage):
         try:
             from minerva.pipeline.verifier import verify_step
             result = await verify_step(self.llm, ctx, "deep_read")
-            if result.get("status") == "warning":
-                logger.warning("step_verify_warning", stage="deep_read", issue=result.get("issue", ""))
+            if result.get("status") == "warning" and result.get("issue"):
+                logger.warning("step_verify_warning", stage="deep_read", issue=result["issue"])
         except Exception:
             logger.debug("stage_fallback", stage=getattr(self, "name", "?"))
             pass
