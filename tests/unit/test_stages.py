@@ -317,7 +317,7 @@ class TestEntityExtractionStageImpl:
 
     @pytest.mark.asyncio
     async def test_skips_empty_snippets(self):
-        """Results with empty snippets should not cause NER processing."""
+        """Results with empty title AND snippet should not cause NER processing."""
         from minerva.pipeline.stages import EntityExtractionStageImpl
 
         mock_doc = _make_spacy_doc()
@@ -327,13 +327,13 @@ class TestEntityExtractionStageImpl:
             nlp_pipeline=mock_nlp, llm_client=AsyncMock(),
         )
         ctx = _make_ctx(search_results=[
-            _make_search_result(snippet=""),
+            _make_search_result(title="", snippet=""),
             _make_search_result(snippet="Valid snippet text here."),
         ])
 
         result = await stage.execute(ctx)
 
-        # Only one call for the non-empty snippet
+        # Only one call — empty title+snippet skipped, non-empty processed
         assert mock_nlp.call_count == 1
 
     @pytest.mark.asyncio

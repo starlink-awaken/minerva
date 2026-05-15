@@ -200,13 +200,16 @@ class EntityExtractionStageImpl(IPipelineStage):
         if self.nlp is None:
             ctx.entities = []
             return ctx
-        for result in ctx.search_results[:10]:
-            text = result.get("snippet", "")
-            if not text:
+        for result in ctx.search_results[:15]:
+            # Combine title + snippet for richer NER input
+            title = result.get('title', '') or ''
+            snippet = result.get('snippet', '') or ''
+            text = f"{title}. {snippet}"
+            if not title and not snippet:
                 continue
             lang = self._detect_language(text)
             nlp = self.nlp_zh if lang == "zh" and self.nlp_zh else self.nlp
-            doc = nlp(text[:1000])
+            doc = nlp(text[:2000])
             for ent in doc.ents:
                 if ent.label_ in ("ORG", "PERSON", "GPE", "PRODUCT", "WORK_OF_ART"):
                     eid = f"ent-{len(entities)}-{ent.label_}"
@@ -322,9 +325,21 @@ class CrossAnalyzeStageImpl(IPipelineStage):
         self.llm = llm_client
 
     async def execute(self, ctx: ResearchContext) -> ResearchContext:
-        analysis = ""
+        # Build analysis text from multiple sources
+        parts = []
+
+        # 1. DeepRead contradiction analysis
         for c in (ctx.contradictions or []):
-            analysis += c.get("analysis", "") + "\n"
+            analysis_text = c.get("analysis", "")
+            if analysis_text and analysis_text != "Deep read analysis unavailable.":
+                parts.append(analysis_text)
+
+        # 2. Extracted document content (from DeepRead)
+        for doc in (ctx.extracted_content or [])[:5]:
+            if doc:
+                parts.append(doc[:500])
+
+        analysis = "\n---\n".join(parts)
 
         if not analysis.strip():
             ctx.relations = []
@@ -332,7 +347,7 @@ class CrossAnalyzeStageImpl(IPipelineStage):
 
         try:
             reasoning = await self.llm.generate(
-                system="You perform deep reasoning on research findings.",
+                system="You perform deep cross-analysis on research findings. Identify patterns, consensus, contradictions, gaps, and synthesize key insights.",
                 prompt=CROSS_ANALYZE_PROMPT.format(query=ctx.query, analysis=analysis[:4000]),
                 temperature=0.5,
                 max_tokens=1500,
