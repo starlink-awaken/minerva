@@ -149,6 +149,8 @@ async def search_semantic_scholar(query: str, max_results: int = 10) -> list[Sea
 
     results = []
     for paper in data.get("data", []):
+        if not paper:
+            continue
         tldr = paper.get("tldr", {})
         snippet = (tldr.get("text") or paper.get("abstract") or "")[:500]
         results.append(SearchResult(
