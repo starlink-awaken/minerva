@@ -92,7 +92,7 @@ async def search_searxng(query: str, base_url: str = "http://localhost:8080", ma
             resp.raise_for_status()
             data = resp.json()
     except Exception:
-        _log.warning("search_backend_empty", source="search_searxng", exc_info=True)
+        _log.warning("search_backend_empty", source="search_searxng", exc_info=False)
         return []
 
     results = []
@@ -182,13 +182,13 @@ async def search_arxiv(query: str, max_results: int = 10) -> list[SearchResult]:
     import urllib.parse
     try:
         encoded = urllib.parse.quote(query)
-        url = f"http://export.arxiv.org/api/query?search_query=all:{encoded}&start=0&max_results={max_results}&sortBy=relevance&sortOrder=descending"
+        url = f"https://export.arxiv.org/api/query?search_query=all:{encoded}&start=0&max_results={max_results}&sortBy=relevance&sortOrder=descending"
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             raw = resp.text
     except Exception:
-        _log.warning("search_backend_empty", source="search_searxng", exc_info=True)
+        _log.warning("search_backend_empty", source="search_searxng", exc_info=False)
         return []
 
     results = []
@@ -309,7 +309,7 @@ async def search_duckduckgo(query: str, max_results: int = 10) -> list[SearchRes
             None, lambda: list(DDGS().text(query, max_results=max_results))
         )
     except Exception:
-        _log.warning("search_backend_empty", source="ddg", exc_info=True)
+        _log.warning("search_backend_empty", source="ddg", exc_info=False)
         return []
 
     results = []

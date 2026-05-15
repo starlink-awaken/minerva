@@ -306,7 +306,7 @@ class DeepReadStageImpl(IPipelineStage):
             if result.get("status") == "warning":
                 logger.warning("step_verify_warning", stage="deep_read", issue=result.get("issue", ""))
         except Exception:
-            logger.debug("stage_fallback", stage=getattr(self, "name", "?"), exc_info=True)
+            logger.debug("stage_fallback", stage=getattr(self, "name", "?"))
             pass
 
         logger.info("deep_read_complete", docs=len(documents), analysis_len=len(analysis))
@@ -593,7 +593,7 @@ class OutputStageImpl(IPipelineStage):
                 if verification.get("issues"):
                     logger.warning("global_verify_issues", count=len(verification["issues"]))
             except Exception:
-                logger.debug("stage_fallback", stage=getattr(self, "name", "?"), exc_info=True)
+                logger.debug("stage_fallback", stage=getattr(self, "name", "?"))
                 pass
 
         if verification.get("issues"):
@@ -614,11 +614,11 @@ class OutputStageImpl(IPipelineStage):
             from minerva.paradigm.router import classify_paradigm
             # Re-classify for report metadata (uses rule-based when no LLM)
             pr = await classify_paradigm(self.llm, ctx.query)
-            pdef = PARADIGMS[pr.paradigm]
-            paradigm_name = pdef.name
-            paradigm_stages = " → ".join(pdef.stages)
+            pdef = PARADIGMS.get(pr.paradigm)
+            if pdef:
+                paradigm_name = pdef.name
+                paradigm_stages = " → ".join(pdef.stages)
         except Exception:
-            logger.debug("stage_fallback", stage=getattr(self, "name", "?"), exc_info=True)
             pass
 
         report = REPORT_TEMPLATE.format(
@@ -662,7 +662,7 @@ class OutputStageImpl(IPipelineStage):
                     ctx.relations.append({"audio_overview": audio_result})
                 logger.info("notebooklm_audio", status=audio_result.get("status", "unknown"))
             except Exception:
-                logger.debug("stage_fallback", stage=getattr(self, "name", "?"), exc_info=True)
+                logger.debug("stage_fallback", stage=getattr(self, "name", "?"))
                 pass
 
         # Auto-index entities into LanceDB for semantic search
@@ -676,7 +676,7 @@ class OutputStageImpl(IPipelineStage):
                 await vs.index_entities(entities, mode="overwrite")
                 logger.info("vector_index", entities=len(entities))
             except Exception:
-                logger.debug("stage_fallback", stage=getattr(self, "name", "?"), exc_info=True)
+                logger.debug("stage_fallback", stage=getattr(self, "name", "?"))
                 pass
 
         logger.info("output_complete", report_len=len(report), verified=verification["verified"])
