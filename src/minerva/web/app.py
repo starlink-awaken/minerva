@@ -98,6 +98,25 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(APIKeyMiddleware)
 
 
+# -- Shared helpers ---------------------------------------------------
+
+
+def _build_paradigm_info(query: str) -> dict | None:
+    """Compile Sophia paradigm info for a query. Returns None on failure."""
+    try:
+        from sophia import compile_paradigm_sync
+        prog = compile_paradigm_sync(query[:500])
+        return {
+            "paradigm": prog.name,
+            "operations": [op.value for op in prog.operations],
+            "state_count": prog.state_count,
+            "transition_count": len(prog.transitions),
+            "mermaid": prog.to_mermaid(),
+        }
+    except Exception:
+        return None
+
+
 # -- Health ------------------------------------------------------------
 
 @app.get("/health")
@@ -154,18 +173,15 @@ async def paradigm_analyze(query: str):
     if not query.strip():
         return JSONResponse({"error": "Query is required"}, status_code=400)
     try:
-        from sophia import compile_paradigm_sync
-        prog = compile_paradigm_sync(query[:500])
+        info = _build_paradigm_info(query)
+        if not info:
+            return JSONResponse({"error": "Analysis failed"}, status_code=500)
         from sophia.learner import ParadigmLearner
         learner = ParadigmLearner()
         suggestion = learner.suggest_paradigm(query[:500])
         return {
             "query": query[:500],
-            "paradigm": prog.name,
-            "operations": [op.value for op in prog.operations],
-            "state_count": prog.state_count,
-            "transition_count": len(prog.transitions),
-            "mermaid": prog.to_mermaid(),
+            **info,
             "evolution": {
                 "sample_count": suggestion.get("sample_count", 0),
                 "confidence": suggestion.get("confidence", 0),
@@ -212,18 +228,7 @@ async def research_start(query: str = Form(...), level: str = Form("auto"), max_
     try:
         result = await executor.execute_now(task)
         # Enrich response with paradigm analysis
-        try:
-            from sophia import compile_paradigm_sync
-            prog = compile_paradigm_sync(query[:500])
-            paradigm_info = {
-                "paradigm": prog.name,
-                "operations": [op.value for op in prog.operations],
-                "state_count": prog.state_count,
-                "transition_count": len(prog.transitions),
-                "mermaid": prog.to_mermaid(),
-            }
-        except Exception:
-            paradigm_info = None
+        paradigm_info = _build_paradigm_info(query[:500])
         # Include stage timings for pipeline visualization
         stage_timings = result.context.stage_timings if hasattr(result, 'context') else {}
 
@@ -384,7 +389,8 @@ def _fmt_inline(text: str) -> str:
 
 
 def _esc(text: str) -> str:
-    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    import html as _html
+    return _html.escape(str(text), quote=True)
 
 
 REPORT_WRAPPER = """<!DOCTYPE html>

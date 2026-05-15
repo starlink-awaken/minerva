@@ -6,9 +6,8 @@ import html as _html
 from pathlib import Path
 
 
-def _esc(text: str) -> str:
-    """HTML-escape text to prevent XSS."""
-    return _html.escape(str(text), quote=True)
+# Reuse standard library HTML escaping
+_esc = _html.escape
 
 
 def markdown_to_html(md_path: str) -> str:

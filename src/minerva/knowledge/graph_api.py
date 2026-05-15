@@ -14,6 +14,13 @@ class GraphDataAccessor:
         self.user = user
         self.password = password or os.environ.get("NEO4J_PASSWORD", "changeme")
         self._driver = None
+        import atexit
+        atexit.register(self.close)
+
+    def close(self):
+        if self._driver:
+            self._driver.close()
+            self._driver = None
 
     def _get_driver(self):
         if self._driver is None:
@@ -43,7 +50,6 @@ class GraphDataAccessor:
 
     def _query_neo4j(self, driver, limit: int) -> tuple[list, list]:
         with driver.session() as session:
-            # Fetch nodes
             node_result = session.run(
                 "MATCH (n) RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props LIMIT $limit",
                 limit=limit,
@@ -63,7 +69,6 @@ class GraphDataAccessor:
                     "color": _node_color(labels[0] if labels else ""),
                 })
 
-            # Fetch edges
             edge_result = session.run(
                 "MATCH (a)-[r]->(b) RETURN id(a) AS source, id(b) AS target, type(r) AS rel_type LIMIT $limit",
                 limit=limit * 2,

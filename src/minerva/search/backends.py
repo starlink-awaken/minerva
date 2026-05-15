@@ -17,6 +17,7 @@ _log = _structlog.get_logger(__name__)
 _client_cache: dict[str, httpx.AsyncClient] = {}
 _domain_last_call: dict[str, float] = {}  # Rate limiting: domain → last call timestamp
 _MIN_CALL_INTERVAL = 2.0  # Minimum seconds between calls to same domain
+_MAX_DOMAIN_CACHE_SIZE = 50  # Prevent unbounded growth of _domain_last_call
 
 
 @atexit.register
@@ -53,6 +54,11 @@ async def _api_get(url: str, params: dict | None = None, headers: dict | None = 
     gap = _MIN_CALL_INTERVAL - (now - last)
     if gap > 0:
         await asyncio.sleep(gap)
+    # Prune cache if too large (LRU: drop oldest entries)
+    if len(_domain_last_call) > _MAX_DOMAIN_CACHE_SIZE:
+        oldest = sorted(_domain_last_call.items(), key=lambda x: x[1])[:_MAX_DOMAIN_CACHE_SIZE // 2]
+        _domain_last_call.clear()
+        _domain_last_call.update(oldest)
 
     for attempt in range(3):
         try:

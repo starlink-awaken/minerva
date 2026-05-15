@@ -234,9 +234,6 @@ def _run_init() -> int:
 
 def _run_check() -> int:
     """Health check — verify all services and dependencies."""
-    import httpx
-    import os
-
     print("\n  ⚡ Minerva Health Check\n")
     passed = 0
     failed = 0

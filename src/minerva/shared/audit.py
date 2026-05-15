@@ -20,7 +20,17 @@ logger = structlog.get_logger("audit")
 
 # Write audit events to a structured JSONL log file
 _AUDIT_DIR = Path(os.environ.get("MINERVA_AUDIT_DIR", Path.home() / ".minerva" / "audit"))
-_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+_audit_dir_ready = False
+
+
+def _ensure_audit_dir():
+    global _audit_dir_ready
+    if not _audit_dir_ready:
+        try:
+            _AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+            _audit_dir_ready = True
+        except Exception:
+            pass
 
 
 def _write_event(level: str, event: str, **kwargs) -> None:
@@ -31,6 +41,7 @@ def _write_event(level: str, event: str, **kwargs) -> None:
         "event": event,
         **kwargs,
     }
+    _ensure_audit_dir()
     try:
         log_file = _AUDIT_DIR / f"audit-{time.strftime('%Y%m%d')}.jsonl"
         with open(log_file, "a") as f:
