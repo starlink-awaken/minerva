@@ -72,7 +72,7 @@ class RAGContextBuilder:
 
         # Format context
         lines = ["Relevant knowledge from previous research:"]
-        for i, e in enumerate(unique[:self.top_k]):
+        for _i, e in enumerate(unique[:self.top_k]):
             name = e.get("name", e.get("content", "Unknown"))
             etype = e.get("type", "Concept")
             lines.append(f"  [{etype}] {name}")

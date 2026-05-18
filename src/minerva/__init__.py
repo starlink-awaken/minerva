@@ -20,3 +20,12 @@ __all__ = [
     "create_knowledge_store",
     "SearchEngine",
 ]
+"""
+Minerva — 本地优先深度研究系统。
+
+跨项目桥接:
+- minerva → sophia: 测试依赖 sophia.compiler + sophia.learner (paradigm编译)
+- minerva → ontoderive: 研究结果可导出为 ontoderive 推导入参
+- minerva ← eCOS: eCOS/scripts 中 research_push.py 调用 minerva
+- minerva → agora: 共享 MCP 生态 (fastmcp)
+"""

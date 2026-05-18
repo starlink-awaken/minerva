@@ -4,7 +4,7 @@ version = "0.11.0"
 description = "Minerva — A local-first deep research system with tiered pipelines, multi-source search, knowledge graphs, symbolic paradigm engine, and temporal reasoning."
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [{name = "Minerva Contributors"}]
 keywords = ["deep-research", "knowledge-graph", "rag", "llm", "agent", "mcp"]
 classifiers = [

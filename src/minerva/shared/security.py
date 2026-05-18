@@ -33,9 +33,7 @@ def is_safe_url(url: str) -> bool:
     # Check if hostname is a private IP
     try:
         ip = ipaddress.ip_address(hostname)
-        if any(ip in net for net in BLOCKED_NETWORKS):
-            return False
-        return True
+        return not any(ip in net for net in BLOCKED_NETWORKS)
     except ValueError:
         pass
     # Hostname is not an IP — resolve and check

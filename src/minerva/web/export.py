@@ -5,7 +5,6 @@ from __future__ import annotations
 import html as _html
 from pathlib import Path
 
-
 # Reuse standard library HTML escaping
 _esc = _html.escape
 

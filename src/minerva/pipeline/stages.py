@@ -8,8 +8,8 @@ import time
 from pathlib import Path
 
 from minerva.knowledge.store import Entity
-from minerva.pipeline.engine import IPipelineStage, QualityGateFailure, ResearchContext
-from minerva.shared import spacy_to_entity_type
+from minerva.pipeline.engine import IPipelineStage, QualityGateError, ResearchContext
+from minerva.shared import spacy_to_entity_type  # noqa: F401
 
 DECOMPOSE_PROMPT = """Decompose this research question into 3-5 specific sub-questions.
 Each sub-question should cover a distinct aspect. Output one question per line.
@@ -409,7 +409,7 @@ class QualityGateStageImpl(IPipelineStage):
         })
 
         if failures:
-            raise QualityGateFailure(f"[score:{score}] {'; '.join(failures)}")
+            raise QualityGateError(f"[score:{score}] {'; '.join(failures)}")
 
         return ctx
 
@@ -551,7 +551,7 @@ class OutputStageImpl(IPipelineStage):
         ]
         for name, detail in stages:
             lines.append(f"1. **{name}**: {detail}")
-        for name, elapsed in ctx.stage_timings.items():
+        for _name, _elapsed in ctx.stage_timings.items():
             pass  # Available but not shown in process log
         return "\n".join(lines)
 
@@ -568,7 +568,9 @@ class OutputStageImpl(IPipelineStage):
         return "\n".join(lines)
 
     async def execute(self, ctx: ResearchContext) -> ResearchContext:
-        import structlog, time as _time
+        import time as _time
+
+        import structlog
         logger = structlog.get_logger(__name__)
         is_quick = ctx.level.value == "L0"
         logger.info("output_start", sources=len(ctx.search_results), entities=len(ctx.entities), quick=is_quick)
@@ -625,8 +627,8 @@ class OutputStageImpl(IPipelineStage):
         paradigm_name = "Auto"
         paradigm_stages = "Search → Analyze → Report"
         try:
-            from minerva.paradigm.types import PARADIGMS
             from minerva.paradigm.router import classify_paradigm
+            from minerva.paradigm.types import PARADIGMS
             # Re-classify for report metadata (uses rule-based when no LLM)
             pr = await classify_paradigm(self.llm, ctx.query)
             pdef = PARADIGMS.get(pr.paradigm)
@@ -683,7 +685,7 @@ class OutputStageImpl(IPipelineStage):
         # Auto-index entities into LanceDB for semantic search
         if ctx.entities:
             try:
-                from minerva.knowledge.store import LanceDBVectorStore, Entity
+                from minerva.knowledge.store import Entity, LanceDBVectorStore
                 vs = LanceDBVectorStore()
                 entities = [Entity(id=e["id"], type=e.get("type","Concept"), name=e["name"],
                                    confidence=e.get("confidence","MEDIUM"), properties=e.get("properties", {}))

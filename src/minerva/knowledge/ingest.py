@@ -117,7 +117,7 @@ class KnowledgeIngester:
         # MinerU only when explicitly enabled (opt-in, 2.3GB models)
         if use_mineru:
             try:
-                from minerva.knowledge.mineru_adapter import parse_to_text, is_available
+                from minerva.knowledge.mineru_adapter import is_available, parse_to_text
                 if is_available():
                     text = parse_to_text(str(path))
                     if text and len(text) > 50:
@@ -138,7 +138,7 @@ class KnowledgeIngester:
     def _extract_office(self, filepath: str) -> str:
         """Extract text from Office documents via MinerU."""
         try:
-            from minerva.knowledge.mineru_adapter import parse_to_text, is_available
+            from minerva.knowledge.mineru_adapter import is_available, parse_to_text
             if is_available():
                 return parse_to_text(str(Path(filepath).expanduser()))
         except Exception:
@@ -153,10 +153,9 @@ class KnowledgeIngester:
         doc = self.nlp(text[:10000])  # Limit to avoid memory issues
         seen_names = set()
         for ent in doc.ents:
-            if ent.label_ in ("ORG", "PERSON", "GPE", "PRODUCT", "WORK_OF_ART", "EVENT"):
-                if ent.text not in seen_names:
-                    seen_names.add(ent.text)
-                    entities.append(Entity(
+            if ent.label_ in ("ORG", "PERSON", "GPE", "PRODUCT", "WORK_OF_ART", "EVENT") and ent.text not in seen_names:
+                seen_names.add(ent.text)
+                entities.append(Entity(
                         id=f"ingest-{len(entities)}-{ent.label_}",
                         type=spacy_to_entity_type(ent.label_),
                         name=ent.text,

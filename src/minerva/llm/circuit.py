@@ -49,9 +49,7 @@ class CircuitBreaker:
 
     def acquire(self) -> bool:
         """Check if a call should be allowed. Returns False if circuit is open."""
-        if self._state.is_open:
-            return False
-        return True
+        return not self._state.is_open
 
     def success(self):
         """Reset failure count on successful call."""

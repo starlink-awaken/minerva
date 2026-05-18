@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 
 import httpx
-from bs4 import BeautifulSoup
-
-from minerva.search.engine import SearchResult
 
 # Shared httpx helpers — reduce boilerplate across 7 backends
 # Connection pooling: one AsyncClient per domain for reuse
 import structlog as _structlog
+from bs4 import BeautifulSoup
+
+from minerva.search.engine import SearchResult
+
 _log = _structlog.get_logger(__name__)
 
 _client_cache: dict[str, httpx.AsyncClient] = {}
@@ -25,10 +27,8 @@ def _cleanup_clients():
     """Close all pooled HTTP clients on process exit."""
     import asyncio
     for client in _client_cache.values():
-        try:
+        with contextlib.suppress(Exception):
             asyncio.get_event_loop().run_until_complete(client.aclose())
-        except Exception:
-            pass
     _client_cache.clear()
 
 
@@ -44,7 +44,8 @@ def _get_client(domain: str, timeout: int = 30) -> httpx.AsyncClient:
 
 async def _api_get(url: str, params: dict | None = None, headers: dict | None = None, timeout: int = 15) -> dict | None:
     """GET JSON from an API. Exponential backoff on 429. Returns None on persistent error."""
-    import asyncio, time
+    import asyncio
+    import time
     from urllib.parse import urlparse
     domain = urlparse(url).netloc or url
 

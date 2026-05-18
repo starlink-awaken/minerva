@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from minerva.web.middleware import APIKeyMiddleware, InputGuardMiddleware, RateLimitMiddleware
+
 _executor_ref: dict = {}  # Holds executor singleton for API use
 
 # Allowed report directories (no path traversal)
@@ -92,7 +94,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Apply security middleware
-from minerva.web.middleware import APIKeyMiddleware, InputGuardMiddleware, RateLimitMiddleware
 app.add_middleware(InputGuardMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(APIKeyMiddleware)
@@ -156,8 +157,9 @@ def _check_sqlite() -> bool:
 
 def _check_llm_local() -> bool:
     try:
-        from minerva.config import MinervaConfig
         import httpx
+
+        from minerva.config import MinervaConfig
         config = MinervaConfig.load()
         resp = httpx.get(f"{config.llm.base_url}/models", timeout=5)
         return resp.status_code == 200
@@ -198,8 +200,10 @@ async def paradigm_analyze(query: str):
 @app.get("/api/stream")
 async def progress_stream():
     """Server-Sent Events stream for real-time system status."""
+    import asyncio
+    import json
+
     from starlette.responses import StreamingResponse
-    import asyncio, json
 
     async def event_stream():
         while True:

@@ -100,7 +100,7 @@ class Pipeline:
 
             try:
                 ctx = await stage.execute(ctx)
-            except QualityGateFailure:
+            except QualityGateError:
                 if retries < max_retries:
                     logger.warning("quality_gate_failed", stage=stage.name, retry=retries + 1)
                     retries += 1
@@ -119,7 +119,7 @@ class Pipeline:
         return ctx
 
 
-class QualityGateFailure(Exception):
+class QualityGateError(Exception):
     """Raised when research quality checks fail."""
     pass
 

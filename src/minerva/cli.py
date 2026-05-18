@@ -6,6 +6,8 @@ import argparse
 import asyncio
 import os
 
+import httpx
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -175,8 +177,8 @@ async def _run_research(args):
 
 def _run_init() -> int:
     """First-time setup wizard."""
-    from pathlib import Path as _Path
     import os
+    from pathlib import Path as _Path
 
     print("\n  ⚡ Minerva — First-Time Setup\n")
     checks = []
@@ -334,6 +336,7 @@ def main():
         return _run_check()
     elif args.command == "web":
         import uvicorn
+
         from minerva.web.app import app
         print("Minerva Web → http://localhost:8765")
         uvicorn.run(app, host="127.0.0.1", port=8765, log_level=os.environ.get("MINERVA_LOG_LEVEL", "info"))

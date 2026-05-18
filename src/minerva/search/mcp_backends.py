@@ -28,8 +28,8 @@ async def _call_mcp_tool(
         Tool result content, or None on failure
     """
     try:
-        async with sse_client(url=url, headers=headers, timeout=timeout) as streams:
-            async with ClientSession(*streams) as session:
+        async with sse_client(url=url, headers=headers, timeout=timeout) as streams, \
+                ClientSession(*streams) as session:
                 await session.initialize()
                 result = await session.call_tool(tool_name, arguments)
                 if result.content:

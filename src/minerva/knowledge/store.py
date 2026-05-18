@@ -156,6 +156,7 @@ class SQLiteKnowledgeStore(IKnowledgeStore):
     def _repair_db(self):
         """Attempt WAL checkpoint recovery. If still broken, backup and recreate."""
         import shutil
+
         import structlog
         logger = structlog.get_logger(__name__)
         try:
@@ -517,8 +518,9 @@ class LanceDBVectorStore:
         if self._table is not None:
             return self._table
         try:
-            import lancedb
             import os
+
+            import lancedb
             os.makedirs(self.db_path, exist_ok=True)
             db = lancedb.connect(self.db_path)
             self._table = db.open_table("entities") if "entities" in db.list_tables() else None
@@ -572,8 +574,9 @@ class LanceDBVectorStore:
             for i, e in enumerate(entities)
         ]
         try:
-            import lancedb
             import os
+
+            import lancedb
             os.makedirs(self.db_path, exist_ok=True)
             db = lancedb.connect(self.db_path)
             if mode == "overwrite" or "entities" not in db.list_tables():
