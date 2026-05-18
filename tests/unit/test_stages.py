@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, PropertyMock
 
-from minerva.pipeline.engine import QualityGateFailure, ResearchContext
+from minerva.pipeline.engine import QualityGateError, ResearchContext
 from minerva.triage.router import ResearchLevel, TriageResult
 
 
@@ -601,13 +601,13 @@ class TestQualityGateStageImpl:
 
     @pytest.mark.asyncio
     async def test_fails_with_no_search_results(self):
-        """Zero search results should trigger QualityGateFailure with score 0."""
+        """Zero search results should trigger QualityGateError with score 0."""
         from minerva.pipeline.stages import QualityGateStageImpl
 
         stage = QualityGateStageImpl()
         ctx = _make_ctx(search_results=[])
 
-        with pytest.raises(QualityGateFailure) as exc_info:
+        with pytest.raises(QualityGateError) as exc_info:
             await stage.execute(ctx)
 
         assert "No search results found" in str(exc_info.value)
@@ -624,7 +624,7 @@ class TestQualityGateStageImpl:
             _make_search_result(source="web"),
         ])
 
-        with pytest.raises(QualityGateFailure) as exc_info:
+        with pytest.raises(QualityGateError) as exc_info:
             await stage.execute(ctx)
 
         assert "Insufficient sources" in str(exc_info.value)
