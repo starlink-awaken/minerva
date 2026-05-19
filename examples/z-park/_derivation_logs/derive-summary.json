@@ -1,0 +1,13 @@
+{
+  "derived_at": "2026-05-18T17:37:41.503498",
+  "facts": 0,
+  "entities": 0,
+  "inferences": 0,
+  "scheme_files": 0,
+  "entailment_graph": {
+    "nodes": 0,
+    "edges": 0,
+    "max_depth": 0,
+    "cycles": 0
+  }
+}

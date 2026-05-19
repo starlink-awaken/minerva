@@ -1,0 +1,121 @@
+{
+  "entries": [
+    {
+      "timestamp": "2026-05-18T17:28:14.974414",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:28:15.027655",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:28:15.072526",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:28:28.860539",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:28:28.920772",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:28:28.967171",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:37:41.391789",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:37:41.452762",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    },
+    {
+      "timestamp": "2026-05-18T17:37:41.500589",
+      "kqi": 0.5,
+      "entropy": 0,
+      "mean_confidence": 0,
+      "n_facts": 0,
+      "n_inferences": 0,
+      "n_entities": 0,
+      "n_scheme_files": 0,
+      "coverage": 1.0,
+      "density": 0,
+      "max_chain_depth": 0
+    }
+  ]
+}

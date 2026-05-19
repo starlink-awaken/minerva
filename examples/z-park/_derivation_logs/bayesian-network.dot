@@ -1,0 +1,4 @@
+digraph BayesianNetwork {
+  rankdir=LR;
+  node [shape=box];
+}

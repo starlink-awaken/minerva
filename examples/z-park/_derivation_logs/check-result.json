@@ -1,0 +1,153 @@
+{
+  "checked_at": "2026-05-18T17:37:41.502812",
+  "total": 13,
+  "passed": 9,
+  "severities": {
+    "PASS": 9,
+    "WARN": 1,
+    "ERROR": 2,
+    "BLOCKER": 1
+  },
+  "details": [
+    {
+      "protocol_id": "C-01",
+      "name": "事实基座完整性",
+      "passed": false,
+      "severity": "BLOCKER",
+      "detail": "事实文件: 0 个",
+      "fixes": [
+        "创建 facts/data.md 和 facts/policy.md"
+      ],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-02",
+      "name": "推论体系完整性",
+      "passed": false,
+      "severity": "ERROR",
+      "detail": "推论文件: 0 个",
+      "fixes": [
+        "创建 inferences/contradictions.md"
+      ],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-03",
+      "name": "方案文件完整性",
+      "passed": false,
+      "severity": "ERROR",
+      "detail": "方案文件: 0 个",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-04",
+      "name": "事实可追溯性",
+      "passed": false,
+      "severity": "WARN",
+      "detail": "事实0个: 推论引用0, 方案引用0 | 蕴含图: 0节点/0边, 深度0",
+      "fixes": [
+        "标注事实编号引用"
+      ],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-05",
+      "name": "断言可追溯性",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "断言0个, 可追溯0, 率100%",
+      "fixes": [
+        "在含'应该/必须/需要'的句子旁标注事实编号引用"
+      ],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-06",
+      "name": "关键判断可证伪性",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "预测断言0个, 可证伪0, 率100%",
+      "fixes": [
+        "为核心数字断言添加'如果X月后Y没发生则重新评估'条件"
+      ],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-07",
+      "name": "实体ID合规性(v2.2 TypeValidator)",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "v2前缀26种",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-08",
+      "name": "推导引擎健康度",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "引擎: check.py",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-09",
+      "name": "贝叶斯信念传播(智能层)",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "N/A",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-10",
+      "name": "信息论层(KQI质量指数)",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "KQI=0.5, 熵=0bits, 密度=0.00, 覆盖=100%",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-11",
+      "name": "控制论层(PID反馈)",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "P=4 I=4.0 D=0.0 信号=6.0 状态=stable",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-12",
+      "name": "图灵机层(知识状态机)",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "快照: 0F/0I/0E",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    },
+    {
+      "protocol_id": "C-13",
+      "name": "形式语言层(OntoLang解析)",
+      "passed": true,
+      "severity": "PASS",
+      "detail": "AST节点6个, 错误0个",
+      "fixes": [],
+      "file": "",
+      "line": 0
+    }
+  ]
+}
