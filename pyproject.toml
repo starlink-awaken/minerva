@@ -38,6 +38,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+paradigm = ["sophia>=0.2.0"]
 tier2 = [
     "graphiti-core[neo4j]>=0.28",
     "semantica>=0.4.0",
